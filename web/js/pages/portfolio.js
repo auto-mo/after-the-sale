@@ -1,8 +1,8 @@
-import { loadPortfolio, loadProducts } from '../data.js?v=202609232243';
-import { renderVolumeChart } from '../charts.js?v=202609232243';
-import { intFmt, monthLong, humanizeType } from '../format.js?v=202609232243';
-import { setView } from '../state.js?v=202609232243';
-import { navigate } from '../router.js?v=202609232243';
+import { loadPortfolio, loadProducts } from '../data.js?v=202609232309';
+import { renderVolumeChart } from '../charts.js?v=202609232309';
+import { intFmt, monthLong, humanizeType } from '../format.js?v=202609232309';
+import { setView } from '../state.js?v=202609232309';
+import { navigate } from '../router.js?v=202609232309';
 
 function computeTakeaway(months, completeThrough) {
   const byYear = new Map();

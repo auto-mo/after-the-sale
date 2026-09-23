@@ -1,10 +1,10 @@
 // Product picker combobox in the header. ARIA combobox/listbox pattern with
 // full keyboard support (arrows, Enter, Escape, type-to-search).
 
-import { loadProducts, loadPortfolio } from './data.js?v=202609232243';
-import { intFmt, humanizeType } from './format.js?v=202609232243';
-import { view, setView, onViewChanged } from './state.js?v=202609232243';
-import { navigate } from './router.js?v=202609232243';
+import { loadProducts, loadPortfolio } from './data.js?v=202609232309';
+import { intFmt, humanizeType } from './format.js?v=202609232309';
+import { view, setView, onViewChanged } from './state.js?v=202609232309';
+import { navigate } from './router.js?v=202609232309';
 
 const MAX_RESULTS = 60;
 

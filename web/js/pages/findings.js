@@ -1,5 +1,5 @@
-import { loadPortfolio } from '../data.js?v=202609232243';
-import { intFmt, pctFmt, rangeFmt, decFmt } from '../format.js?v=202609232243';
+import { loadPortfolio } from '../data.js?v=202609232309';
+import { intFmt, pctFmt, rangeFmt, decFmt } from '../format.js?v=202609232309';
 
 const QUESTIONS = [
   {

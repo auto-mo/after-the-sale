@@ -1,7 +1,7 @@
-import { findProduct } from './data.js?v=202609232243';
-import { getView, setView, getPreviousView } from './state.js?v=202609232243';
-import { navigate } from './router.js?v=202609232243';
-import { monthShort } from './format.js?v=202609232243';
+import { findProduct } from './data.js?v=202609232309';
+import { getView, setView, getPreviousView } from './state.js?v=202609232309';
+import { navigate } from './router.js?v=202609232309';
+import { monthShort } from './format.js?v=202609232309';
 
 const MAX_LEN = 1000;
 let messages = [];
@@ -18,25 +18,45 @@ function currentRouteInfo() {
   return { onProduct: false, productId: null };
 }
 
+// Model replies may use light markdown (**bold**, "- " or "1. " lists, "#" headings). Render it with DOM text
+// nodes only (never innerHTML), so nothing in a reply can inject markup.
+function appendInline(el, text) {
+  const parts = String(text).replace(/^#+\s*/, '').split(/\*\*(.+?)\*\*/g);
+  parts.forEach((part, i) => {
+    if (!part) return;
+    if (i % 2 === 1) {
+      const b = document.createElement('strong');
+      b.textContent = part;
+      el.appendChild(b);
+    } else {
+      el.appendChild(document.createTextNode(part));
+    }
+  });
+}
+
 function renderMessageContent(container, text) {
   const paragraphs = String(text).split(/\n{2,}/);
   for (const para of paragraphs) {
     const lines = para.split('\n').filter((l) => l.trim() !== '');
-    const isList = lines.length > 1 && lines.every((l) => /^[-*]\s+/.test(l.trim()));
-    if (isList) {
-      const ul = document.createElement('ul');
-      ul.style.margin = '4px 0';
-      ul.style.paddingLeft = '18px';
+    const bullet = lines.length > 0 && lines.every((l) => /^[-*]\s+/.test(l.trim()));
+    const numbered = lines.length > 0 && lines.every((l) => /^\d+[.)]\s+/.test(l.trim()));
+    if (bullet || numbered) {
+      const list = document.createElement(numbered ? 'ol' : 'ul');
+      list.style.margin = '4px 0';
+      list.style.paddingLeft = '20px';
       for (const l of lines) {
         const li = document.createElement('li');
-        li.textContent = l.trim().replace(/^[-*]\s+/, '');
-        ul.appendChild(li);
+        appendInline(li, l.trim().replace(/^([-*]|\d+[.)])\s+/, ''));
+        list.appendChild(li);
       }
-      container.appendChild(ul);
+      container.appendChild(list);
     } else {
       const p = document.createElement('p');
       p.style.margin = '0 0 6px';
-      p.textContent = para;
+      lines.forEach((l, i) => {
+        if (i) p.appendChild(document.createElement('br'));
+        appendInline(p, l);
+      });
       container.appendChild(p);
     }
   }

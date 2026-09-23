@@ -83,3 +83,15 @@
 **Tested:** publish check: no tokens/keys, no private IPs; data (no redistribution licence), listing-text samples, dev folders and hard-coded paths excluded or fixed. Live checks with curl and the browser; headless screenshots viewed before use; GitHub reports MIT; apps landing shows the card.
 **Result:** pass (Work page deploy pending owner sudo)
 **Issues:** chat still offline pending the Haiku test run.
+
+## [2026-09-23] Phase 8b — Real-model testing on Haiku 4.5, and deploy staging
+**Built:** fixes from the real runs: tool schemas (strict mode rejected: range keywords, then "schema too complex"; strict removed, server-side clamps already in place, test guards the schema); timeline tool totals now from the full range (a shared 72-row cap had cut AF101's refurbished total from 10 to 4, and the model repeated it); event tool returns a deterministic plain_summary and clearer field names (the model had called +21.9% vs comparison "a 21.9% decline"); prompt rules for ambiguous products and unrequested view changes; em dashes stripped from replies in code; `measure` aligned to the page contract (volume | rating); runner fails on API errors (the first run's 5 "passes" were fallback text) and gained --only. Staged on jarvis: ~/demand-evidence (code, 6 parquet files, venv with pinned Flask/anthropic/duckdb/python-dotenv + gunicorn 26.2.0, .env mode 600) and deploy/ (systemd unit with MemoryMax 512M / CPUQuota 50%, nginx limit_req zone keyed on CF-Connecting-IP, /demand-evidence/api/ route, install.sh with automatic rollback if nginx -t fails).
+**Tested:** real runs: 0/17 (API 400, $0) → 14/17 ($0.137) → 14/17 ($0.140) → final 5 changed + regression cases 5/5 ($0.043); all 17 cases now pass. Total real-API spend ≈ $0.32 plus a $0.013 smoke test on jarvis (gunicorn started by hand, health + one real chat that set the view correctly, stopped by exact PID). pytest 65 passed.
+**Result:** pass (service install awaits owner sudo)
+**Issues:** prompt caching does not engage (the ~2.4k-token prefix is below the model's minimum cacheable size); cost per question measured at about $0.003 to $0.02.
+
+## [2026-09-23] Deploy 3 — Assistant live
+**Built:** owner ran deploy/install.sh: systemd `demand-evidence` (gunicorn 1 worker × 4 threads on 127.0.0.1:5021, MemoryMax 512M, CPUQuota 50%), nginx /demand-evidence/api/ route with a per-visitor limit_req zone keyed on CF-Connecting-IP; Work entry re-published without the "switches on after its test run" note. Chat now renders light markdown (**bold**, bullet and numbered lists) with DOM text nodes only.
+**Tested:** service active with the limits applied; health through the public URL; a real question through the public route; in the live page, "Show AF101 from Jan 2019 to Dec 2020, new units only" set From/To, unticked Refurbished and showed the "Set:" chip; a list reply renders without literal asterisks or em dashes.
+**Result:** pass
+**Issues:** none open. Turnstile not configured (optional); the daily cap and per-visitor limits are active.

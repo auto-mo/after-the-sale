@@ -1,5 +1,5 @@
-import { loadPortfolio } from '../data.js?v=202609232241';
-import { intFmt, pctFmt, rangeFmt, decFmt } from '../format.js?v=202609232241';
+import { loadPortfolio } from '../data.js?v=202609232243';
+import { intFmt, pctFmt, rangeFmt, decFmt } from '../format.js?v=202609232243';
 
 const QUESTIONS = [
   {
@@ -50,7 +50,7 @@ export async function render(container) {
 
   const h1 = document.createElement('h1');
   h1.style.marginBottom = '18px';
-  h1.textContent = 'What holds up across every event, not just one';
+  h1.textContent = 'Averaged across hundreds of events, three patterns hold up';
   container.appendChild(h1);
 
   for (const q of QUESTIONS) {

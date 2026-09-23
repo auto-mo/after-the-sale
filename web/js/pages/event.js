@@ -1,7 +1,7 @@
-import { loadProductDetail } from '../data.js?v=202609232241';
-import { renderEventStudyChart } from '../charts.js?v=202609232241';
-import { decFmt, pctFmt, rangeFmt, monthShort, addMonths, EMPTY } from '../format.js?v=202609232241';
-import { navigate } from '../router.js?v=202609232241';
+import { loadProductDetail } from '../data.js?v=202609232243';
+import { renderEventStudyChart } from '../charts.js?v=202609232243';
+import { decFmt, pctFmt, rangeFmt, monthShort, addMonths, EMPTY } from '../format.js?v=202609232243';
+import { navigate } from '../router.js?v=202609232243';
 
 const EVENT_TYPE_LABEL = {
   sibling_launch: 'Sibling launch',

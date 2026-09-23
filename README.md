@@ -25,9 +25,9 @@ questions are out of scope, and the tool says so.
   that had no such event. A fake-date (placebo) test showed the natural swings are large: without a correction, about
   1 in 10 fake events would be called "moved". After a false-discovery check across all 819 testable events, none holds up.
 - **Averages across events do hold** (product-level bootstrap, 90% ranges, compared with the placebo baseline):
-  - after a sibling launch, older products' reviews ran about 42% higher (+24% to +64%, 113 products);
-  - once refurbished units appeared, new-unit reviews ran about 40% higher (+15% to +72%, 54 products);
-  - after a low-rating month, the next 3 months ran about 9% lower (−17% to −1%, 92 products).
+  - after a sibling launch, older products' reviews ran 42.5% higher (+24% to +64%, 113 products);
+  - once refurbished units appeared, new-unit reviews ran 40.0% higher (+15% to +72%, 54 products);
+  - after a low-rating month, the next 3 months ran 9.2% lower (−17% to −1%, 92 products).
   The data shows these happening together and cannot say what caused them: launches may be timed when a line is
   growing, and refurbished units appear once a product has sold a lot.
 

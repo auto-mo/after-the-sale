@@ -4,7 +4,7 @@
 // to its card's width via CSS (width:100%, height:auto) so nothing ever
 // forces a horizontal scrollbar and text is never stretched out of shape.
 
-import { monthShort, monthLong, monthIndex, intFmt, decFmt } from './format.js?v=202609232241';
+import { monthShort, monthLong, monthIndex, intFmt, decFmt } from './format.js?v=202609232243';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const MINUS = '−';

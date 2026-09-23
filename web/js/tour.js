@@ -1,5 +1,5 @@
-import { view, isTourDone, markTourDone } from './state.js?v=202609232241';
-import { navigate } from './router.js?v=202609232241';
+import { view, isTourDone, markTourDone } from './state.js?v=202609232243';
+import { navigate } from './router.js?v=202609232243';
 
 const STEPS = [
   {

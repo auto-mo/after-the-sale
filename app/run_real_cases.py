@@ -64,6 +64,7 @@ def main() -> int:
         default=APP_DIR / "real_api_cases.json",
         help="Path to the cases JSON file.",
     )
+    parser.add_argument("--only", default="", help="Comma-separated case ids to run (default: all).")
     args = parser.parse_args()
 
     cfg = load_config()
@@ -72,6 +73,9 @@ def main() -> int:
         return 2
 
     cases = json.loads(args.cases.read_text())
+    if args.only:
+        wanted = {x.strip() for x in args.only.split(",") if x.strip()}
+        cases = [c for c in cases if c["id"] in wanted]
     toolbox = build_toolbox(cfg.data_dir)
 
     total_input = total_output = total_cache_read = total_cache_write = 0
@@ -100,6 +104,11 @@ def main() -> int:
         total_cache_write += result.cost.cache_creation_tokens
 
         ok, problems = check_case(case, result.reply, result.tools_used, result.view)
+        if "\u2014" in result.reply:
+            ok, problems = False, ["reply contains an em dash"] + problems
+        if getattr(result, "error", None):
+            # An API error must never pass a case just because the fallback text avoids forbidden words.
+            ok, problems = False, [f"API error: {result.error}"] + problems
         status = "PASS" if ok else "FAIL"
         if ok:
             n_pass += 1

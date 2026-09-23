@@ -33,12 +33,21 @@ def test_get_product_timeline_both_channels(toolbox):
     r = toolbox.get_product_timeline("SN-AF101", channel="both")
     assert r["data_complete_through"] == "2023-03"
     assert "new" in r["totals"] and "renewed" in r["totals"]
-    assert len(r["months"]) <= 72
+    # Totals come from the full range (regression: refurbished total was cut to 4 of 10 by a shared row cap).
+    assert r["totals"]["new"]["reviews"] == 5877
+    assert r["totals"]["renewed"]["reviews"] == 10
+    assert {x["channel"] for x in r["rows"]} == {"new", "renewed"}
+    assert sum(x["reviews"] for x in r["rows"] if x["channel"] == "renewed") == 10
 
 
 def test_get_product_timeline_clamps_to_2023_09(toolbox):
     r = toolbox.get_product_timeline("SN-AF101", to="2030-01", channel="new")
-    assert all(m["month"] <= "2023-09" for m in r["months"])
+    def last_month(period):
+        if "-Q" in period:
+            y, q = period.split("-Q")
+            return f"{y}-{int(q) * 3:02d}"
+        return period
+    assert all(last_month(m["period"]) <= "2023-09" for m in r["rows"])
 
 
 def test_get_product_timeline_bad_product(toolbox):
@@ -134,7 +143,7 @@ def test_set_view_defaults(toolbox):
     assert v["product_id"] == "SN-AF101"
     assert v["to"] <= "2023-09"
     assert v["channels"]
-    assert v["measure"] == "reviews"
+    assert v["measure"] == "volume"  # the page contract is volume | rating
 
 
 def test_set_view_clamps_future_to(toolbox):
@@ -156,7 +165,8 @@ def test_set_view_channel_default_nonempty(toolbox):
 
 def test_dispatch_maps_from_keyword(toolbox):
     r = dispatch(toolbox, "get_product_timeline", {"product_id": "SN-AF101", "from": "2019-01"})
-    assert all(m["month"] >= "2019-01" for m in r["months"])
+    assert all(m["period"][:4] >= "2019" for m in r["rows"])
+    assert r["totals"]["new"]["reviews"] < 5877
 
 
 def test_dispatch_unknown_tool(toolbox):

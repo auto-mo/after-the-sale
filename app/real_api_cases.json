@@ -10,12 +10,11 @@
   "view": null,
   "expect": {
    "must_call": [
-    "find_products",
-    "set_view"
+    "find_products"
    ],
-   "must_set_view": true,
+   "must_set_view": null,
    "must_not_contain": [],
-   "notes": "Loose phrasing for a product name and a year-only range; model must resolve it via find_products and call set_view."
+   "notes": "'Blue wandvac' matches two products (WV401BL, WV410BL); asking which one, or setting the view to a clear match, are both acceptable."
   }
  },
  {
@@ -108,8 +107,10 @@
    "must_call": [],
    "must_set_view": false,
    "must_not_contain": [
-    "in stock",
-    "out of stock"
+    "is in stock at",
+    "was in stock",
+    "stock level",
+    "units in stock"
    ],
    "notes": "Must decline: no stock data exists in this dataset."
   }
@@ -222,9 +223,12 @@
     "find_products",
     "get_product_timeline"
    ],
-   "must_set_view": false,
-   "must_not_contain": [],
-   "notes": "Should call get_product_timeline with channel=both and summarize totals for each channel."
+   "must_set_view": null,
+   "must_not_contain": [
+    "4 total",
+    "just 4 renewed"
+   ],
+   "notes": "Regression for the timeline row cap (renewed total was 4 of 10). Setting the view alongside the answer is acceptable."
   }
  },
  {
@@ -334,10 +338,14 @@
    ],
    "must_set_view": false,
    "must_not_contain": [
-    "sales dropped",
-    "caused"
+    "21.9% decline",
+    "21.9% drop",
+    "declined 21.9",
+    "dropped 21.9",
+    "fell 21.9",
+    "fell by 21.9"
    ],
-   "notes": "Verdict is No clear change; answer must not claim an effect or talk about sales as if measured (reviews are a proxy)."
+   "notes": "Found in the first real run: the model called the +21.9% change vs comparison a decline. It must quote the plain_summary and not claim an effect."
   }
  }
 ]

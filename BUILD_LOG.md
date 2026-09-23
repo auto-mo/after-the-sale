@@ -77,3 +77,9 @@
 **Tested:** pre-deploy capacity check (11 GiB available, disk 48%, load 0.98/12). Live: all assets and data return 200; /.claude/launch.json now 404; browser check of Product, Portfolio, Findings, Method, Event and NV360 pages with real headlines; chat drawer shows the offline message; only console error is the expected 404 from api/chat. Portfolio headline "9.4× from 2013 to 2022" verified against the data (4,323 → 40,835).
 **Result:** pass
 **Issues:** chat service not deployed yet (needs key + real-model test + one sudo session for systemd and an nginx /work/demand-evidence/api/ proxy route with a rate limit).
+
+## [2026-09-23] Deploy 2 — Moved to apps.mohithgujjula.com, open-sourced, Work entry
+**Built:** app at https://apps.mohithgujjula.com/demand-evidence/ (static, ~/apps-landing, no sudo); card on the apps landing page; public repo https://github.com/auto-mo/demand-evidence (MIT; 78 files; two commits via the GitHub API because Apple git is blocked by the unaccepted Xcode licence); Work entry on mohithgujjula.com (staged, needs owner sudo). Fixes found while doing it: router focus scrolled every page 64px under the sticky header; Cloudflare caches JS/CSS/JSON for 4h, so `scripts/stamp_version.py` stamps one version onto every module, stylesheet and data URL; owner feedback applied (Volume/Rating switch now two equal options with an arrow knob, refurbished colour #8DBBF0 for contrast with graphite, no thick rounded focus ring on chart bars); "X, not Y" copy and remaining &mdash; entities rewritten; `?notour` URL switch.
+**Tested:** publish check: no tokens/keys, no private IPs; data (no redistribution licence), listing-text samples, dev folders and hard-coded paths excluded or fixed. Live checks with curl and the browser; headless screenshots viewed before use; GitHub reports MIT; apps landing shows the card.
+**Result:** pass (Work page deploy pending owner sudo)
+**Issues:** chat still offline pending the Haiku test run.

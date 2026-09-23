@@ -22,7 +22,7 @@ DATA_COMPLETE_THROUGH = "2023-03"
 MAX_VIEW_MONTH = "2023-09"
 
 VALID_CHANNELS = ("new", "renewed")
-VALID_MEASURES = ("reviews", "rating")
+VALID_MEASURES = ("volume", "rating")
 
 
 class ToolError(Exception):
@@ -54,6 +54,30 @@ def _parse_month(s: str, field: str) -> str:
     if not isinstance(s, str) or not re.match(r"^\d{4}-\d{2}(-\d{2})?$", s):
         raise ToolError(f"{field} must be a YYYY-MM or YYYY-MM-DD string, got {s!r}")
     return s[:7]
+
+
+def _pct(v):
+    return f"{'+' if v >= 0 else '-'}{abs(v):.1f}%"
+
+
+def _event_summary(e: dict) -> str:
+    """Deterministic one-sentence reading of an event test (same logic as the page headline)."""
+    et, detail = e.get("event_type"), e.get("detail") or ""
+    what = (f"a low-rating month ({detail.split(' (')[0]})" if et == "low_rating"
+            else "refurbished units appearing" if et == "refurbished" else detail or et)
+    when = e.get("event_month")
+    before, after = e.get("pre_mean"), e.get("post_mean")
+    raw = ""
+    if before is not None and after is not None:
+        raw = f" Raw reviews went from {before:.1f} to {after:.1f} a month."
+    if e["verdict"] == "not_enough_data":
+        return f"Not enough data to test this product around {what} ({when}): {e.get('reason')}."
+    eff, lo, hi = e.get("effect_pct"), e.get("lo_pct"), e.get("hi_pct")
+    rel = f"{_pct(eff)} compared with similar products (range {_pct(lo)} to {_pct(hi)})"
+    if e["verdict"] == "moved":
+        return f"New-unit reviews moved {'up' if eff > 0 else 'down'} after {what} ({when}): {rel}.{raw}"
+    return (f"No clear change after {what} ({when}): {rel}, which is within this product's normal swings "
+            f"and not distinguishable from chance.{raw}")
 
 
 class ToolBox:
@@ -193,40 +217,43 @@ class ToolBox:
         to_m = _parse_month(to, "to") if to else None
         to_m = min(to_m, MAX_VIEW_MONTH) if to_m else MAX_VIEW_MONTH
 
-        sql = (
-            "SELECT channel, month, reviews, avg_rating, data_complete "
-            "FROM sn_panel_month WHERE product_id = ? AND channel = ANY(?) "
-            "AND strftime(month, '%Y-%m') <= ?"
-        )
+        where = "product_id = ? AND channel = ANY(?) AND strftime(month, '%Y-%m') <= ?"
         params: list[Any] = [product_id, channels, to_m]
         if from_m:
-            sql += " AND strftime(month, '%Y-%m') >= ?"
+            where += " AND strftime(month, '%Y-%m') >= ?"
             params.append(from_m)
-        sql += " ORDER BY channel, month LIMIT 72"
-        rows = self._query(sql, params)
-        for r in rows:
-            r["month"] = _month_str(r["month"])
-            r["reviews"] = int(r["reviews"] or 0)
 
-        totals: dict[str, dict] = {}
+        # Totals come from the full range, never from the (possibly shortened) row list below.
+        totals: dict[str, dict] = {ch: {"reviews": 0, "avg_rating": None, "months": 0} for ch in channels}
+        for t in self._query(
+            f"SELECT channel, sum(reviews) AS reviews, count(*) AS months, "
+            f"sum(reviews * coalesce(avg_rating, 0)) / nullif(sum(reviews), 0) AS avg_rating "
+            f"FROM sn_panel_month WHERE {where} GROUP BY channel", params):
+            totals[t["channel"]] = {"reviews": int(t["reviews"] or 0), "months": int(t["months"]),
+                                    "avg_rating": round(t["avg_rating"], 2) if t["avg_rating"] is not None else None}
+
+        # Rows: monthly when a channel spans <= 48 months, otherwise quarterly, so every channel fits in full.
+        rows: list[dict] = []
+        granularity = {}
         for ch in channels:
-            ch_rows = [r for r in rows if r["channel"] == ch]
-            total_reviews = sum(r["reviews"] for r in ch_rows)
-            weighted = sum(
-                (r["avg_rating"] or 0) * r["reviews"] for r in ch_rows if r["avg_rating"] is not None
-            )
-            avg_rating = (weighted / total_reviews) if total_reviews else None
-            totals[ch] = {
-                "reviews": total_reviews,
-                "avg_rating": round(avg_rating, 2) if avg_rating is not None else None,
-                "months": len(ch_rows),
-            }
+            gran = "month" if totals[ch]["months"] <= 48 else "quarter"
+            granularity[ch] = gran
+            bucket = "strftime(month, '%Y-%m')" if gran == "month" else "strftime(month, '%Y') || '-Q' || cast(quarter(month) AS VARCHAR)"
+            for r in self._query(
+                f"SELECT {bucket} AS period, sum(reviews) AS reviews, "
+                f"sum(reviews * coalesce(avg_rating, 0)) / nullif(sum(reviews), 0) AS avg_rating, bool_and(data_complete) AS data_complete "
+                f"FROM sn_panel_month WHERE {where.replace('channel = ANY(?)', 'channel = ?')} GROUP BY 1 ORDER BY 1",
+                [product_id, ch] + params[2:]):
+                rows.append({"channel": ch, "period": r["period"], "reviews": int(r["reviews"] or 0),
+                             "avg_rating": round(r["avg_rating"], 2) if r["avg_rating"] is not None else None,
+                             "data_complete": bool(r["data_complete"])})
 
         return {
             "product_id": product_id,
             "canonical_title": product["canonical_title"],
             "channel": channel,
-            "months": rows,
+            "granularity": granularity,
+            "rows": rows,
             "totals": totals,
             "data_complete_through": DATA_COMPLETE_THROUGH,
         }
@@ -245,7 +272,15 @@ class ToolBox:
             "FROM sn_event_test WHERE product_id = ? ORDER BY event_month LIMIT 50",
             [product_id],
         )
-        return {"product_id": product_id, "canonical_title": product["canonical_title"], "events": rows, "count": len(rows)}
+        for r in rows:
+            r["plain_summary"] = _event_summary(r)
+            # Clearer names so the model cannot confuse the comparison effect with the raw change.
+            r["change_vs_comparison_pct"] = r.pop("effect_pct")
+            r["raw_avg_reviews_per_month_before"] = r.pop("pre_mean")
+            r["raw_avg_reviews_per_month_after"] = r.pop("post_mean")
+        return {"product_id": product_id, "canonical_title": product["canonical_title"], "events": rows, "count": len(rows),
+                "how_to_read": "Quote plain_summary. change_vs_comparison_pct compares this product's change with similar "
+                               "products that had no such event; it is not the raw change in reviews."}
 
     # ------------------------------------------------------------------
     # 4. rank_products
@@ -452,10 +487,10 @@ class ToolBox:
             params.append(_parse_month(to, "to"))
         if min_rating is not None:
             sql += " AND r.rating >= ?"
-            params.append(int(min_rating))
+            params.append(max(1, min(int(min_rating), 5)))
         if max_rating is not None:
             sql += " AND r.rating <= ?"
-            params.append(int(max_rating))
+            params.append(max(1, min(int(max_rating), 5)))
         if contains:
             sql += " AND (r.review_text ILIKE ? OR r.review_title ILIKE ?)"
             like = f"%{contains.strip()}%"
@@ -539,7 +574,9 @@ class ToolBox:
             if not channels:
                 channels = ["new"]
 
-        measure = measure if measure in VALID_MEASURES else "reviews"
+        # The page's contract is "volume" | "rating"; accept "reviews" as an alias for volume.
+        measure = "volume" if measure in ("reviews", None) else measure
+        measure = measure if measure in VALID_MEASURES else "volume"
 
         view = {
             "product_id": product_id,
@@ -570,12 +607,11 @@ TOOL_SCHEMAS: list[dict] = [
                 "type": {"type": "string", "description": "Optional exact product_type filter, e.g. 'air fryer'."},
                 "family": {"type": "string", "description": "Optional exact family code filter, e.g. 'AF'."},
                 "include_accessories": {"type": "boolean", "description": "Include accessory/part listings. Default false."},
-                "limit": {"type": "integer", "description": "Max results, 1-10.", "minimum": 1, "maximum": 10},
+                "limit": {"type": "integer", "description": "Max results, 1-10."},
             },
             "required": ["query"],
             "additionalProperties": False,
         },
-        "strict": True,
     },
     {
         "name": "get_product_timeline",
@@ -594,7 +630,6 @@ TOOL_SCHEMAS: list[dict] = [
             "required": ["product_id"],
             "additionalProperties": False,
         },
-        "strict": True,
     },
     {
         "name": "get_product_events",
@@ -610,7 +645,6 @@ TOOL_SCHEMAS: list[dict] = [
             "required": ["product_id"],
             "additionalProperties": False,
         },
-        "strict": True,
     },
     {
         "name": "rank_products",
@@ -631,12 +665,11 @@ TOOL_SCHEMAS: list[dict] = [
                 "from": {"type": "string", "description": "Window start month, YYYY-MM. Used only for the 'growth' metric."},
                 "to": {"type": "string", "description": "Window end month, YYYY-MM. Used only for the 'growth' metric."},
                 "min_reviews": {"type": "integer", "description": "Minimum total reviews to qualify. Default 50."},
-                "limit": {"type": "integer", "description": "Max results, 1-10.", "minimum": 1, "maximum": 10},
+                "limit": {"type": "integer", "description": "Max results, 1-10."},
             },
             "required": ["metric"],
             "additionalProperties": False,
         },
-        "strict": True,
     },
     {
         "name": "get_findings",
@@ -647,7 +680,6 @@ TOOL_SCHEMAS: list[dict] = [
             "'what did you find overall' or 'what can't you answer' questions."
         ),
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
-        "strict": True,
     },
     {
         "name": "search_reviews",
@@ -664,15 +696,14 @@ TOOL_SCHEMAS: list[dict] = [
                 "from": {"type": "string", "description": "Start month, YYYY-MM. Optional."},
                 "to": {"type": "string", "description": "End month, YYYY-MM. Optional."},
                 "channel": {"type": "string", "enum": ["new", "renewed"], "description": "Optional channel filter."},
-                "min_rating": {"type": "integer", "minimum": 1, "maximum": 5},
-                "max_rating": {"type": "integer", "minimum": 1, "maximum": 5},
+                "min_rating": {"type": "integer", "description": "Lowest star rating to include, 1-5."},
+                "max_rating": {"type": "integer", "description": "Highest star rating to include, 1-5."},
                 "contains": {"type": "string", "description": "Substring to search for in the review text or title."},
-                "limit": {"type": "integer", "description": "Max results, 1-15.", "minimum": 1, "maximum": 15},
+                "limit": {"type": "integer", "description": "Max results, 1-15."},
             },
             "required": ["product_id"],
             "additionalProperties": False,
         },
-        "strict": True,
     },
     {
         "name": "set_view",
@@ -692,12 +723,11 @@ TOOL_SCHEMAS: list[dict] = [
                     "items": {"type": "string", "enum": ["new", "renewed"]},
                     "description": "Optional channel list. Defaults to whichever channels the product has.",
                 },
-                "measure": {"type": "string", "enum": ["reviews", "rating"], "description": "Optional. Default 'reviews'."},
+                "measure": {"type": "string", "enum": ["volume", "rating"], "description": "Optional. 'volume' (review counts) or 'rating'. Default 'volume'."},
             },
             "required": ["product_id"],
             "additionalProperties": False,
         },
-        "strict": True,
     },
 ]
 

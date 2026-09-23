@@ -1,0 +1,19 @@
+[Unit]
+Description=Demand Evidence assistant API (apps.mohithgujjula.com/demand-evidence)
+After=network.target
+
+[Service]
+Type=simple
+User=mohith
+WorkingDirectory=/home/mohith/demand-evidence/app
+# Key and limits live here (mode 600, owned by mohith). Nothing secret in this unit.
+EnvironmentFile=/home/mohith/demand-evidence/app/.env
+# One worker: the per-visitor rate limiter lives in this process's memory. Threads handle concurrency.
+ExecStart=/home/mohith/demand-evidence/.venv/bin/gunicorn --workers 1 --threads 4 --bind 127.0.0.1:5021 --timeout 90 --access-logfile - --error-logfile - "server:create_app()"
+Restart=always
+RestartSec=3
+MemoryMax=512M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

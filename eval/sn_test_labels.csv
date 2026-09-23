@@ -1,0 +1,124 @@
+pair_id,label,confidence,rationale
+0,1,high,"Same HV294 handheld vac, only color (Rose Gold vs Red) and renewed status differ."
+1,0,medium,A is Navigator Powered Lift Away (no model given) vs B is NV800 DuoClean Powered Lift-Away Speed; different product lines.
+2,0,high,GI305 vs GI462 are different iron model numbers.
+3,1,high,"Both are Shark ION RV700 robot vacuum, renewed listings."
+4,0,medium,EP033 vs EP033TN are different model numbers with differing feature descriptions; not a known colour/retailer suffix.
+5,0,medium,"A is Rocket PowerHead Upright (no model) vs B is NV480 Rocket Upright; different feature text, no shared model number."
+6,0,high,"Navigator Deluxe vacuum vs Rotator Powered LiftAway vacuum are different vacuum lines, only the bundled steam mop matches."
+7,1,high,"Both are Shark IR141 stick vacuum, identical feature text and model number."
+8,1,medium,"Identical title 'Nutri Ninja 2 in 1 700 Watt Food Processor and Blender', both Amazon Renewed."
+9,1,high,"Both Shark IZ363HT cordless stick vacuum, new vs renewed."
+10,0,high,"A is a bowl+blade+lid kit; B is bowl only (no lid, no blade) - different purchasable accessory unit."
+11,1,high,Both explicitly NV500 Shark Rotator Professional Lift-Away.
+12,0,medium,S3501 vs S3501N are different steam mop model numbers.
+13,1,high,"Both Shark CH951 UltraCyclone Pet Pro Plus handheld vacuum, identical features."
+14,0,high,Bundle A includes a knife set (K32017) while bundle B includes a stock pot (C30465) - different bundle contents/SKUs despite shared cookware set.
+15,1,high,"Same base model QS301Q, only colour differs (Eggplant vs Ice Blue) per QS301QIB suffix."
+16,0,high,CZ2001 vs CZ2005 are different model numbers with different included tool counts.
+17,0,medium,AF101 vs AF100 are different model numbers (different generation of Ninja air fryer).
+18,1,high,"Both Shark UV7965 vacuum, Black/Teal, new vs certified refurbished."
+19,0,high,UV810 Navigator DuoClean Powered Lift-Away Speed vs NV771 DuoClean Upright are different specific models.
+20,0,medium,uv440 Navigator Lift-Away Deluxe vs NV351 Navigator Lift-Away are different model numbers/sub-lines.
+21,0,high,"A is a full steam mop (S3501A) while B is titled 'Household-Vacuum-Pads' suggesting mop pad refills, not the same unit."
+22,1,high,"Both NV801Q DuoClean Powered Lift-Away Speed, only colour differs (Blue Jean vs Red)."
+23,1,medium,Both titles reference IX141H Purple with identical feature text; B's item_model_number field (IX140H) appears to be a data entry inconsistency.
+24,0,high,HV322 vs HV345 are different model numbers with different described technology (Zero-M self-cleaning only on B).
+25,1,high,"Both Ninja CT800 Professional Chef Blender, refurbished vs new, identical features."
+26,0,medium,QU202Q DuoClean Slim vs NV200 DuoClean Slim are different model numbers/product codes.
+27,1,medium,"Both reference Shark Rocket IX141 Lightweight Cordless Stick Vacuum, Blue Iris; A's title has extraneous unrelated text but core model/colour match."
+28,0,high,"A is an Onboard Accessory Holder (a vacuum part) compatible with several NV models, not the NV351 vacuum itself."
+29,0,high,HV300 Ultra-Light Corded Stick vs UV450 Ultra-Light Deluxe Upright Stick are different model numbers and form factors.
+30,0,high,BL487 Nutri Ninja Auto-iQ Pro Complete vs BL640 Nutri Ninja Duo are different model numbers/products.
+31,1,high,"Both Ninja CF082 coffee maker, renewed vs new, identical description."
+32,0,high,A is a FreshVac Pump accessory; B is the full CT661V countertop blender - accessory vs main unit.
+33,1,high,NJ600 and NJ600WM30 share the same base model NJ600 with a retailer/colour suffix.
+34,0,medium,A is a generic 'Navigator Bagless Upright' (no model) vs B is the specific NV106 'Navigator Light' sub-line; insufficient evidence of a match.
+35,1,high,"Both Shark AZ2000 Vertex Upright vacuum, base model AZ2000 with colour suffixes (W/Rose Gold vs Blue)."
+36,1,high,"Both Ninja IG601 Foodi XL 7-in-1 Indoor Grill Combo, identical description, new vs renewed."
+37,1,medium,Both Shark Navigator NV22-series corded bagless upright with matching feature text; NV22LWM/NV22S look like suffix variants of the same base NV22 model.
+38,0,high,HZ2002 Vertex Ultralight Corded Stick vs QS301Q Rocket Ultra-Light Corded Stick are different product lines/models.
+39,1,high,Identical model number BA-NNJ-18/2 and identical title/features.
+40,1,high,"NV71BL and NV71 share the same base model NV71, BL denoting the Blue colour."
+41,0,medium,"B's title explicitly says HV302 (different model from HV301) despite the item_model_number field listing HV301, which appears to be a data error."
+42,1,high,"Both V2930 floor and carpet sweeper, identical title and features."
+43,0,high,HV300 vs HV370 Rocket Pro are different model numbers.
+44,1,low,A is a generic 'Rocket Powerhead Vacuum Cleaner' (no model) and B is the specific AH452 Rocket PowerHead; plausible match on product name alone but no confirming fields.
+45,0,high,NV42 vs NV60 are different model numbers/product lines.
+46,0,high,NV750 vs NV755 are different model numbers.
+47,0,high,Different wattage (1400W vs 1200W) and different number of functions (5 vs 3) indicate different kitchen systems.
+48,1,high,"Both Shark HE401 Air Purifier, new vs renewed."
+49,1,high,"Both reference Shark S5003D Genius Hard Floor Cleaning System Pocket Steam Mop, same colour, new vs renewed."
+50,1,high,"Same HV294 handheld vac line, only colour (Purple vs Red) and renewed status differ."
+51,0,high,CF080Z vs CF091 are different coffee maker model numbers with different brew size/option counts.
+52,0,high,NV27CH Charcoal vs NV22S Silver are different model numbers.
+53,1,medium,Identical 'Food Chopper Express Chop 200-Watt 16-Ounce Bowl' description; A lacks the Ninja brand/model in title but matches B (NJ110GR) exactly.
+54,1,high,Identical model number (non-28268) and identical title/features.
+55,0,high,BL490T Auto-iQ Blender vs BL642REF Nutri Blender Duo are different model numbers/products.
+56,0,medium,BLZ-9462 vs QB1000 are different model designations for Ninja Master Prep; insufficient evidence they are the same unit.
+57,0,high,A is disposable VACMOP pad refills (accessory); B is the full VC205 VACMOP Max cordless vacuum mop device.
+58,1,high,Both explicitly NV480 Shark Rocket Upright/Stick vacuum.
+59,1,high,"Both Ninja QB3004 Nutri Ninja 2-in-1, new vs renewed."
+60,1,high,"Both XFF350 Shark replacement filter set, identical title and features."
+61,0,medium,A is a generic '4-in-1 6-Quart Digital Cooking System' (no model) vs B is the specific CS960 Auto-iQ Multi/Slow Cooker; insufficient evidence of a match given Ninja's multiple 6-qt multicooker lines.
+62,0,high,HV300 vs HV381Q are different Rocket stick vacuum models.
+63,unsure,medium,"Both are generic Shark Steam Pocket Mop listings but Shark sold several pocket mop models (S3501, S3550, etc.); B specifies S3550 while A has no model, so cannot confirm a match."
+64,0,medium,NV586 (Navigator Powered Lift-Away) vs a generically named 'Navigator Powered Lift-Away DLX' with no model; DLX suggests a different sub-line.
+65,0,high,CT800 Professional Chef Blender vs NJ600 Professional Blender are different model numbers/products.
+66,0,medium,A is 'Navigator Deluxe Upright Vacuum' vs B is 'Navigator Powered Lift Away Upright Vacuum'; different sub-lines despite same colour.
+67,1,high,"Both Shark GI305 steam iron, identical listings, both Amazon Renewed."
+68,1,high,Both share model number SV75Z (Shark Pet-Perfect/Cordless Handvac cordless handheld vacuum).
+69,unsure,medium,"A has a generic seller SKU (72976) with no clear Ninja model, while B is QB3000REF; cannot confirm they are the same base blender."
+70,1,medium,Both share item_model_number IX140H (Shark Rocket lightweight cordless stick vacuum) with matching feature text; colour differs (purple vs blue) but base model matches.
+71,0,high,QU922Q APEX DuoClean Powered Lift-Away Speed vs NV831 DuoClean Powered Lift-Away are different product lines/models.
+72,0,high,TO1612 vs TO140L are different toaster oven model numbers.
+73,1,medium,Both Ninja NC301 CREAMi bowl maker; NC301RG appears to be a colour-coded (Rose Gold) variant of the base NC301 model.
+74,0,medium,"NV750 (Silver) vs a generically labeled 'Rotator Powered Lift-Away' (Purple, no matching model number); insufficient evidence of a match."
+75,0,medium,"ZU632 self-cleaning brushroll Rotator vs a generically labeled Rotator Powered Lift-Away (no self-cleaning brushroll mentioned, different colour); insufficient evidence of a match."
+76,0,high,KC276T vs KC275P are different slow cooker model numbers with different capacities.
+77,1,high,"Both Ninja CT661V Smart Screen Duo blender, renewed vs new, identical feature text."
+78,1,high,"MC900QCN and MC900QSS share the base model MC900Q with colour-coded suffixes (Cinnamon vs Stainless Steel), matching the QB751QBK/QB751QCN suffix pattern."
+79,1,high,"Both BL701WM Ninja Professional Kitchen blender, identical listings."
+80,0,high,"A is a handheld vacuum with 4 attachments; B is HV300, a corded stick vacuum - different form factor."
+81,0,high,CF092 vs CF091 are different Ninja coffee bar model numbers.
+82,unsure,medium,A is a generic '13-Piece Blender System' (no model) vs B is BL685; cannot confirm the piece count/model match from given fields.
+83,0,medium,A is 'Master Prep Pro System' (48oz+40oz bowls) vs B is plain 'Master Prep' (QB600W30); different product tiers.
+84,0,high,NV800 DuoClean Powered Lift Away Speed vs ZU620 Rotator Powered Lift Away Upright Stick are different model lines.
+85,0,high,A is a bowl/lid attachment compatible with BL200/BL201/BL204; B is the full BL201 blender/processor system - accessory vs main unit.
+86,0,high,BL500 vs BL710W(M) are different Ninja blender model numbers.
+87,1,high,"Both Ninja BL680A, identical title and description."
+88,1,high,"Both Shark HV381Q DuoClean Ultra-Light Corded Stick Vacuum, only colour differs (Blue vs Purple)."
+89,1,high,"Both are Shark NV800 DuoClean/Rotator Powered Lift-Away Speed vacuum, same base model NV800."
+90,0,medium,A bundle title mentions 'Rotator Lift-Away' (no HV300 stick vacuum) while B is plainly HV300 corded stick vacuum; insufficient evidence of a match.
+91,unsure,medium,A is a generic '18V Shark Cordless Hand-Held Vacuum' with no model; B is LV801; cannot confirm same unit from given fields.
+92,0,high,11-piece cookware set vs 14-piece cookware set (C19700) are different purchasable sets.
+93,1,high,"Both Ninja JC101 Cold Press Pro Juicer, new vs renewed."
+94,0,high,IR100 vs IR101 are different Shark Rocket Ion model numbers.
+95,0,high,ZU560 vs ZU562 are different Shark Navigator model numbers.
+96,1,high,"BL642 and BL642REF share the same base model with a refurbished/renewed suffix, matching the CF080/CF080REF pattern."
+97,1,high,"Both Shark IONFlex DuoClean Cordless Ultra-Light Vacuum, Green; B specifies IF202, new vs renewed, identical feature text."
+98,1,high,Identical title 'Euro Pro Shark Vac-Then-Steam Hard Floor Cleaning System' and identical feature text.
+99,1,medium,"Both Ninja NC299AMZ CREAMi Ice Cream Maker, Matte Black; bundle differs only in accessory pint count (2-pack vs 1), same base model."
+100,1,medium,"Both '6 Quart 3-in-1 Multi-System Slow Cooker', renewed; only colour differs (Orange vs Silver), no model numbers given but description otherwise matches."
+101,1,medium,Both describe the same 700-Watt personal blender base with near-identical feature text; B specifies model QB3000SS.
+102,0,high,BL494 (1200W) vs BL687CO-RB (1500W) are different Ninja kitchen system models.
+103,0,high,S3601D vs S2902 are different Shark steam mop model numbers.
+104,1,medium,A is a generic 'Nutri Bowl DUO Blender with Auto-iQ Boost' (no model) and B specifies model NN101 for the same product name; likely the same unit.
+105,1,medium,"Both center on the Ninja C38000 Foodi NeverStick Premium 8-piece cookware set; A's bundle additionally includes a fry pan (C30030), consistent with a bundle-plus-accessory variant of the same base set."
+106,0,high,NV800 vs NV801 are different Shark DuoClean Powered Lift Away Speed model numbers.
+107,0,high,A is a 40oz pitcher bowl accessory compatible with BL700/NJ600/NJ602; B is the full BL700 Kitchen System - accessory vs main unit.
+108,1,high,"Both Shark Multi-Vac NH15, identical title and features."
+109,1,high,"Both are the identical Ninja Foodi Power Pitcher System (Ninja CO351B), identical feature text."
+110,0,medium,A describes a 'Rotator Lift-Away + Rocket Swivel Vacuum' bundle and B describes a 'Rocket Ultralight + Rotator Lift-Away' bundle; differing sub-model descriptors (Swivel vs Ultralight) suggest different bundles.
+111,0,medium,S3601 vs S3601D are different model numbers for Shark Professional Steam Pocket Mop.
+112,1,high,BL772-FS and BL772QT-RB share the same base model BL772 Mega Kitchen System with different suffixes.
+113,unsure,medium,A is a 'Navigator Lift Away Vacuum + Steam Mop Cleaner' bundle with no model number; B is the NV380 vacuum alone; cannot confirm the bundle's base vacuum is NV380.
+114,1,high,Both describe the identical Ninja 1100-Watt 72oz Total Crushing Countertop Blender with 4 16oz cups.
+115,1,high,Both share the exact model number BL773CO despite differing marketing descriptions (kitchen system vs food processor blender).
+116,1,high,"Both Ninja Foodi SS100 Stainless Steel Smoothie Blender Bowl Maker, identical model number and title."
+117,0,high,ZU632 Rotator (self-cleaning brushroll) vs NV502 Rotator Lift-Away Professional are different model numbers/lines.
+118,0,high,ZU632 Rotator vs LA401 Navigator Lift-Away ADV are different model numbers/lines.
+119,1,medium,"A is a generic 'Rocket Ultra-Light Corded Stick Vacuum' (Black, no model) matching B's HV300 title phrase closely, though colour/model are unconfirmed."
+120,1,high,"Both describe the Shark UpLight (LZ602) Upright Vacuum, Terracotta, with nearly identical feature text."
+121,1,high,"Both Ninja CT810 Chef blender, identical model number."
+122,0,high,BL483 1000W Auto-iQ Blender vs BL642REF Nutri Blender Duo are different model numbers/products.

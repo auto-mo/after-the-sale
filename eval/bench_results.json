@@ -1,0 +1,159 @@
+{
+  "abt_buy": {
+    "weights": {
+      "jac": 1.0,
+      "cross": 0.8,
+      "price": 0.25,
+      "brand": 0.1,
+      "num": 0.3
+    },
+    "threshold": 0.34,
+    "tune": {
+      "precision": 0.889,
+      "recall": 0.773,
+      "f1": 0.827,
+      "tp": 635,
+      "fp": 79,
+      "fn": 187,
+      "tn": 6758
+    },
+    "test": {
+      "precision": 0.93,
+      "recall": 0.777,
+      "f1": 0.847,
+      "tp": 160,
+      "fp": 12,
+      "fn": 46,
+      "tn": 1698
+    },
+    "test_reasons": {
+      "model_conflict": 912,
+      "blended": 895,
+      "model_equal": 96,
+      "model_prefix": 13
+    },
+    "baseline_model_only": {
+      "precision": 1.0,
+      "recall": 0.466,
+      "f1": 0.636,
+      "tp": 96,
+      "fp": 0,
+      "fn": 110,
+      "tn": 1710
+    },
+    "baseline_title_only_best": {
+      "precision": 0.575,
+      "recall": 0.447,
+      "f1": 0.503,
+      "tp": 92,
+      "fp": 68,
+      "fn": 114,
+      "tn": 1642
+    }
+  },
+  "amazon_google": {
+    "weights": {
+      "jac": 1.0,
+      "cross": 0.0,
+      "price": 0.4,
+      "brand": 0.2,
+      "num": 0.1
+    },
+    "threshold": 0.52,
+    "tune": {
+      "precision": 0.461,
+      "recall": 0.533,
+      "f1": 0.494,
+      "tp": 497,
+      "fp": 582,
+      "fn": 436,
+      "tn": 7652
+    },
+    "test": {
+      "precision": 0.469,
+      "recall": 0.543,
+      "f1": 0.503,
+      "tp": 127,
+      "fp": 144,
+      "fn": 107,
+      "tn": 1915
+    },
+    "test_reasons": {
+      "blended": 2246,
+      "model_conflict": 27,
+      "model_equal": 20
+    },
+    "baseline_model_only": {
+      "precision": 0.35,
+      "recall": 0.03,
+      "f1": 0.055,
+      "tp": 7,
+      "fp": 13,
+      "fn": 227,
+      "tn": 2046
+    },
+    "baseline_title_only_best": {
+      "precision": 0.381,
+      "recall": 0.59,
+      "f1": 0.463,
+      "tp": 138,
+      "fp": 224,
+      "fn": 96,
+      "tn": 1835
+    }
+  },
+  "walmart_amazon": {
+    "weights": {
+      "jac": 1.0,
+      "cross": 0.35,
+      "price": 0.15,
+      "brand": 0.0,
+      "num": 0.2
+    },
+    "threshold": 0.58,
+    "tune": {
+      "precision": 0.848,
+      "recall": 0.796,
+      "f1": 0.821,
+      "tp": 612,
+      "fp": 110,
+      "fn": 157,
+      "tn": 7314
+    },
+    "test": {
+      "precision": 0.87,
+      "recall": 0.834,
+      "f1": 0.852,
+      "tp": 161,
+      "fp": 24,
+      "fn": 32,
+      "tn": 1832
+    },
+    "test_reasons": {
+      "model_conflict": 1345,
+      "blended": 539,
+      "model_equal": 127,
+      "model_prefix": 19,
+      "model_contains": 10,
+      "model_in_other_title": 9
+    },
+    "baseline_model_only": {
+      "precision": 0.992,
+      "recall": 0.653,
+      "f1": 0.787,
+      "tp": 126,
+      "fp": 1,
+      "fn": 67,
+      "tn": 1855
+    },
+    "baseline_title_only_best": {
+      "precision": 0.478,
+      "recall": 0.389,
+      "f1": 0.429,
+      "tp": 75,
+      "fp": 82,
+      "fn": 118,
+      "tn": 1774
+    }
+  }
+}

@@ -1,0 +1,6 @@
+pair_id,adjudicated_label,evidence
+111,1,"S3601 vs S3601D: identical dimensions 12 x 5.9 x 51.2 in and weight 4.85 lb, same 'Professional Steam Pocket Mop' title and features"
+17,1,"AF101 vs AF100: word-for-word identical spec title (1550-Watt Programmable Base, 4-Quart Ceramic Coated Basket), same colour; alias recorded in data/manual/model_aliases.csv"
+12,unsure,"S3501N listing has no features, description or dimensions ('As Seen On TV', 12 lb); cannot confirm same unit"
+4,unsure,"EP033TN 'Turbo Hand Vac' has only a title and weight (3.85 lb vs 2 lb); may be the same unit plus a turbo brush, cannot confirm"
+41,unsure,"Listing's title says HV302 (orange) while its model field says HV301 (black/red); the data contradicts itself"

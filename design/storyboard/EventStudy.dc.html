@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sibling launch question</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'IBM Plex Sans',system-ui,sans-serif;color:#16191D;background:#F4F5F7}
+a{color:#16191D}a:hover{color:#E0661B}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.disp{font-family:'Archivo',sans-serif}
+button,select,input{font-family:'IBM Plex Sans',sans-serif;font-size:14px}
+select,input{height:40px;border:1px solid #9AA2AC;border-radius:3px;background:#fff;color:#16191D;padding:0 10px}
+button{height:40px;border-radius:3px;cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid #E0661B;outline-offset:2px}
+h1,h2,h3{text-wrap:balance}
+</style>
+</helmet>
+<div style="width: 1440px; height: 960px; box-sizing: border-box; display: flex; flex-direction: column; background: #F4F5F7; overflow: hidden; position: relative">
+<header style="height:64px;flex-shrink:0;display:flex;align-items:center;gap:32px;padding:0 32px;background:#fff;border-bottom:1px solid #D5D9DE"><span class="disp" style="font-size:18px;font-weight:700">Demand Evidence</span><div style="flex-grow:1;display:flex;justify-content:center"><div style="display:flex;align-items:center;gap:8px"><span id="plab" style="font-size:13px;color:#58606A">Product</span><button type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="plab" style="width:380px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border:1px solid #9AA2AC;background:#fff;color:#16191D;text-align:left"><span>Ninja AF101 air fryer</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div></div><nav style="display:flex;gap:24px" aria-label="Sections"><a href="Portfolio.dc.html" style="height:64px;display:flex;align-items:center;padding:0 4px;text-decoration:none;font-size:14px;font-weight:400;border-bottom:2px solid transparent;box-sizing:border-box">Portfolio</a><a href="Main.dc.html" style="height:64px;display:flex;align-items:center;padding:0 4px;text-decoration:none;font-size:14px;font-weight:400;border-bottom:2px solid transparent;box-sizing:border-box">Product</a><a href="Questions.dc.html" style="height:64px;display:flex;align-items:center;padding:0 4px;text-decoration:none;font-size:14px;font-weight:600;border-bottom:2px solid #16191D;box-sizing:border-box">Questions</a><a href="Method.dc.html" style="height:64px;display:flex;align-items:center;padding:0 4px;text-decoration:none;font-size:14px;font-weight:400;border-bottom:2px solid transparent;box-sizing:border-box">Method</a></nav><button type="button" style="display:flex;align-items:center;gap:6px;border:1px solid #9AA2AC;background:#fff;color:#16191D;padding:0 12px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4.5"/><path d="M12 17.5h.01"/></svg>Take the tour</button></header>
+<main style="display:flex;gap:24px;padding:24px 32px;flex-grow:1">
+  <form style="width:300px;display:flex;flex-direction:column;gap:16px;background:#fff;border:1px solid #D5D9DE;border-radius:4px;padding:20px;box-sizing:border-box;align-self:flex-start" aria-label="Question setup">
+    <h2 class="disp" style="margin:0;font-size:18px;font-weight:700">Set up the question</h2>
+    <div style="display:flex;flex-direction:column;gap:6px"><label for="et" style="font-size:13px;font-weight:600">Event type</label>
+      <select id="et"><option>Sibling launch in the family</option><option>Refurbished units appear</option><option>Low-rating run</option></select></div>
+    <div style="display:flex;flex-direction:column;gap:6px"><label for="ev" style="font-size:13px;font-weight:600">Event</label>
+      <select id="ev"><option>AF080 launched · Aug 2019</option><option>AF150AMZ launched · Apr 2021</option></select></div>
+    <div style="display:flex;flex-direction:column;gap:6px"><label for="wn" style="font-size:13px;font-weight:600">Window around the event</label>
+      <input id="wn" type="range" min="3" max="24" value="12" style="height:24px;border:none;padding:0">
+      <span style="font-size:13px;color:#58606A">12 months before and after</span></div>
+    <div style="display:flex;flex-direction:column;gap:6px"><label for="cmp" style="font-size:13px;font-weight:600">Compare against</label>
+      <select id="cmp"><option>Similar products with no sibling launch</option><option>AF101's own trend before the event</option></select>
+      <span style="font-size:12px;color:#58606A">Matched on product type, age and prior volume.</span></div>
+    <div style="display:flex;align-items:center;gap:10px;font-size:14px"><span id="tl" style="font-weight:600">Volume</span><button type="button" role="switch" aria-checked="false" aria-label="Show rating instead of volume" style="width:44px;height:24px;padding:0;border:none;border-radius:12px;background:#9AA2AC;position:relative"><span style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff"></span></button><span style="font-weight:400">Rating</span></div>
+    <button type="button" style="border:none;background:#16191D;color:#fff;font-weight:600">Run the comparison</button>
+  </form>
+  <section style="display:flex;flex-direction:column;gap:16px;flex-grow:1">
+    <nav aria-label="Breadcrumb" style="font-size:13px;color:#58606A"><a href="Main.dc.html" style="color:#58606A">AF101</a> / sibling launch / AF080</nav>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px">
+      <h1 class="disp" style="margin:0;font-size:28px;font-weight:700;max-width:640px">[Headline states the measured result: AF101 reviews changed by x% vs comparison after AF080 launched]</h1>
+      <div style="display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px 0 8px;border:1.5px solid #E0661B;border-radius:2px 12px 12px 2px;background:#fff"><span style="width:8px;height:8px;border-radius:50%;border:1.5px solid #E0661B;box-sizing:border-box"></span><span style="font-size:14px;font-weight:600;color:#16191D">[VERDICT]</span></div>
+    </div>
+    <div style="background:#fff;border:1px solid #D5D9DE;border-radius:4px;padding:18px 16px 8px;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;justify-content:space-between;margin:0 12px">
+        <h2 style="margin:0;font-size:16px;font-weight:600">AF101 new-unit reviews, months relative to the AF080 launch</h2>
+        <div style="display:flex;gap:16px;font-size:12px;color:#58606A">
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:#3A4048"></span>AF101 (actual)</span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:10px;background:#F4F5F7;border:1px dashed #58606A"></span>comparison band [to compute]</span></div>
+      </div>
+      <svg width="900" height="340" viewBox="0 0 900 340" role="img" aria-label="Reviews per month" style="display:block"><defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#C3C9D0" stroke-width="2"/></pattern></defs><line x1="44" x2="888" y1="312.0" y2="312.0" stroke="#D5D9DE" stroke-width="1"/><text x="36" y="316.0" text-anchor="end" font-family="IBM Plex Mono" font-size="11" fill="#58606A">0</text><line x1="44" x2="888" y1="242.0" y2="242.0" stroke="#D5D9DE" stroke-width="1"/><text x="36" y="246.0" text-anchor="end" font-family="IBM Plex Mono" font-size="11" fill="#58606A">100</text><line x1="44" x2="888" y1="172.1" y2="172.1" stroke="#D5D9DE" stroke-width="1"/><text x="36" y="176.1" text-anchor="end" font-family="IBM Plex Mono" font-size="11" fill="#58606A">200</text><line x1="44" x2="888" y1="102.1" y2="102.1" stroke="#D5D9DE" stroke-width="1"/><text x="36" y="106.1" text-anchor="end" font-family="IBM Plex Mono" font-size="11" fill="#58606A">300</text><line x1="44" x2="888" y1="32.1" y2="32.1" stroke="#D5D9DE" stroke-width="1"/><text x="36" y="36.1" text-anchor="end" font-family="IBM Plex Mono" font-size="11" fill="#58606A">400</text><rect x="115.6" y="306.4" width="25.7" height="5.6" fill="#3A4048"/><rect x="149.3" y="301.5" width="25.7" height="10.5" fill="#3A4048"/><rect x="183.1" y="284.7" width="25.7" height="27.3" fill="#3A4048"/><rect x="216.9" y="241.3" width="25.7" height="70.7" fill="#3A4048"/><rect x="250.6" y="204.2" width="25.7" height="107.8" fill="#3A4048"/><rect x="284.4" y="207.0" width="25.7" height="105.0" fill="#3A4048"/><rect x="318.1" y="231.5" width="25.7" height="80.5" fill="#3A4048"/><rect x="351.9" y="237.8" width="25.7" height="74.2" fill="#3A4048"/><rect x="385.7" y="160.2" width="25.7" height="151.8" fill="#3A4048"/><rect x="419.4" y="53.8" width="25.7" height="258.2" fill="#3A4048"/><rect x="453.2" y="130.8" width="25.7" height="181.2" fill="#3A4048"/><rect x="486.9" y="177.0" width="25.7" height="135.0" fill="#3A4048"/><rect x="520.7" y="217.5" width="25.7" height="94.5" fill="#3A4048"/><rect x="554.5" y="236.4" width="25.7" height="75.6" fill="#3A4048"/><rect x="588.2" y="186.1" width="25.7" height="125.9" fill="#3A4048"/><rect x="622.0" y="164.4" width="25.7" height="147.6" fill="#3A4048"/><rect x="655.7" y="228.7" width="25.7" height="83.3" fill="#3A4048"/><rect x="689.5" y="253.9" width="25.7" height="58.1" fill="#3A4048"/><rect x="723.3" y="270.7" width="25.7" height="41.3" fill="#3A4048"/><rect x="757.0" y="256.7" width="25.7" height="55.3" fill="#3A4048"/><rect x="790.8" y="266.5" width="25.7" height="45.5" fill="#3A4048"/><rect x="824.5" y="248.3" width="25.7" height="63.7" fill="#3A4048"/><rect x="858.3" y="257.4" width="25.7" height="54.6" fill="#3A4048"/><line x1="44" x2="888" y1="312" y2="312" stroke="#16191D" stroke-width="1"/><line x1="466.0" x2="466.0" y1="40" y2="312" stroke="#E0661B" stroke-width="1.5" stroke-dasharray="3 3"/><rect x="466.0" y="28" width="172" height="18" fill="#fff" stroke="#E0661B"/><text x="472.0" y="41" font-family="IBM Plex Sans" font-size="11" fill="#16191D">AF080 launched · Aug 2019</text><text x="60.9" y="332" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#58606A">-12</text><text x="162.2" y="332" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#58606A">-9</text><text x="263.4" y="332" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#58606A">-6</text><text x="364.7" y="332" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#58606A">-3</text><text x="466.0" y="332" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#58606A">+0</text><text x="567.3" y="332" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#58606A">+3</text><text x="668.6" y="332" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#58606A">+6</text><text x="769.8" y="332" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#58606A">+9</text><text x="871.1" y="332" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="#58606A">+12</text></svg>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
+      <div style="background:#fff;border:1px solid #D5D9DE;border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#58606A">Before, raw monthly average</span>
+        <span class="mono" style="font-size:26px">106</span><span style="font-size:12px;color:#58606A">months −12 to −1, unadjusted</span></div>
+      <div style="background:#fff;border:1px solid #D5D9DE;border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#58606A">After, raw monthly average</span>
+        <span class="mono" style="font-size:26px">117</span><span style="font-size:12px;color:#58606A">months +1 to +12, unadjusted</span></div>
+      <div style="background:#fff;border:1px solid #D5D9DE;border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:4px;border-color:#E0661B"><span style="font-size:13px;color:#58606A">Change vs comparison</span>
+        <span class="mono" style="font-size:26px">[±x%]</span><span style="font-size:12px;color:#58606A">[range] · the number the verdict rests on</span></div>
+    </div>
+    <p style="margin:0;font-size:13px;color:#58606A;max-width:900px">Caution on this case: AF101 launched in Aug 2018, so the "before" window is its ramp-up. The raw before/after gap mixes product age with the launch effect; the comparison band separates them.</p>
+  </section>
+</main>
+<footer style="height:48px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 32px;background:#fff;border-top:1px solid #D5D9DE;font-size:13px;color:#58606A"><span>© 2026 <a href="https://mohithgujjula.com" style="color:#16191D">Mohith Gujjula</a></span><span style="display:flex;gap:24px"><span>Data: Amazon Reviews 2023, McAuley Lab (UCSD) · complete through March 2023</span><a href="Method.dc.html" style="color:#16191D">Method and limits</a><a href="https://mohithgujjula.com" style="color:#16191D">mohithgujjula.com</a></span></footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Product picker, open</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'IBM Plex Sans',system-ui,sans-serif;color:#16191D;background:#F4F5F7}
+a{color:#16191D}a:hover{color:#E0661B}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.disp{font-family:'Archivo',sans-serif}
+button,select,input{font-family:'IBM Plex Sans',sans-serif;font-size:14px}
+select,input{height:40px;border:1px solid #9AA2AC;border-radius:3px;background:#fff;color:#16191D;padding:0 10px}
+button{height:40px;border-radius:3px;cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid #E0661B;outline-offset:2px}
+h1,h2,h3{text-wrap:balance}
+</style>
+</helmet>
+<div style="width: 640px; height: 720px; box-sizing: border-box; padding: 24px; background: #F4F5F7; display: flex; flex-direction: column; gap: 6px">
+  <div style="display:flex;align-items:center;gap:8px"><span id="plab" style="font-size:13px;color:#58606A">Product</span><button type="button" aria-haspopup="listbox" aria-expanded="true" aria-labelledby="plab" style="width:380px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border:1px solid #16191D;background:#fff;color:#16191D;text-align:left"><span>Ninja AF101 air fryer</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+  <div style="margin-left:61px;width:380px;background:#fff;border:1px solid #D5D9DE;border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,0.12);display:flex;flex-direction:column">
+    <div style="padding:12px;border-bottom:1px solid #D5D9DE;display:flex;flex-direction:column;gap:8px">
+      <label for="psearch" style="font-size:13px;font-weight:600">Search 876 products and 262 accessories and bundles</label>
+      <input id="psearch" type="search" placeholder="Model or name, such as AF101 or Navigator">
+      <div style="display:flex;gap:16px;font-size:13px">
+        <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" checked style="width:16px;height:16px;margin:0;accent-color:#16191D">Units</label>
+        <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" style="width:16px;height:16px;margin:0;accent-color:#16191D">Accessories</label>
+      </div>
+    </div>
+    <div role="listbox" aria-label="Products" style="display:flex;flex-direction:column;padding-bottom:10px">
+      <div style="display:flex;justify-content:space-between;padding:8px 16px 0;font-size:12px;color:#58606A"><span>Grouped by family</span><span>Reviews</span></div>
+      <div role="presentation" style="padding:10px 16px 4px;font-size:13px;font-weight:600;color:#58606A">AF · Air fryers</div><div role="option" aria-selected="true" style="display:flex;justify-content:space-between;gap:16px;padding:8px 16px;background:#EEF0F3;border-left:3px solid #E0661B"><span style="font-size:14px"><strong>AF101</strong> Air Fryer that Crisps, Roasts, Reheats</span><span class="mono" style="font-size:13px;color:#58606A">5,887</span></div><div role="option" aria-selected="false" style="display:flex;justify-content:space-between;gap:16px;padding:8px 16px;background:#fff;border-left:3px solid transparent"><span style="font-size:14px"><strong>AF080</strong> Mini Air Fryer, 2 Quarts Capacity, Compa</span><span class="mono" style="font-size:13px;color:#58606A">1,635</span></div><div role="option" aria-selected="false" style="display:flex;justify-content:space-between;gap:16px;padding:8px 16px;background:#fff;border-left:3px solid transparent"><span style="font-size:14px"><strong>AF150</strong> Air Fryer XL, 5.5 Qt. Capacity that c</span><span class="mono" style="font-size:13px;color:#58606A">514</span></div><div role="option" aria-selected="false" style="display:flex;justify-content:space-between;gap:16px;padding:8px 16px;background:#fff;border-left:3px solid transparent"><span style="font-size:14px"><strong>AF161</strong> 5.5-Quart, Gray (Renewed)</span><span class="mono" style="font-size:13px;color:#58606A">108</span></div><div role="presentation" style="padding:10px 16px 4px;font-size:13px;font-weight:600;color:#58606A">BL · Blenders</div><div role="option" aria-selected="false" style="display:flex;justify-content:space-between;gap:16px;padding:8px 16px;background:#fff;border-left:3px solid transparent"><span style="font-size:14px"><strong>BL610</strong> Professional 72 Oz Countertop Blender wi</span><span class="mono" style="font-size:13px;color:#58606A">7,031</span></div><div role="option" aria-selected="false" style="display:flex;justify-content:space-between;gap:16px;padding:8px 16px;background:#fff;border-left:3px solid transparent"><span style="font-size:14px"><strong>BL660</strong> Professional Compact Smoothie & Food Pro</span><span class="mono" style="font-size:13px;color:#58606A">6,748</span></div><div role="option" aria-selected="false" style="display:flex;justify-content:space-between;gap:16px;padding:8px 16px;background:#fff;border-left:3px solid transparent"><span style="font-size:14px"><strong>BL770</strong> Mega Kitchen System, 72 oz. Pitcher</span><span class="mono" style="font-size:13px;color:#58606A">4,865</span></div><div role="option" aria-selected="false" style="display:flex;justify-content:space-between;gap:16px;padding:8px 16px;background:#fff;border-left:3px solid transparent"><span style="font-size:14px"><strong>BL456</strong> Nutri Pro Compact Personal Blender, with</span><span class="mono" style="font-size:13px;color:#58606A">3,097</span></div><div role="presentation" style="padding:10px 16px 4px;font-size:13px;font-weight:600;color:#58606A">NV · Navigator vacuums</div><div role="option" aria-selected="false" style="display:flex;justify-content:space-between;gap:16px;padding:8px 16px;background:#fff;border-left:3px solid transparent"><span style="font-size:14px"><strong>NV356</strong> E 31 Navigator Lift-Away Professional Up</span><span class="mono" style="font-size:13px;color:#58606A">12,159</span></div><div role="option" aria-selected="false" style="display:flex;justify-content:space-between;gap:16px;padding:8px 16px;background:#fff;border-left:3px solid transparent"><span style="font-size:14px"><strong>NV501</strong> Rotator Professional Lift-Away Upright V</span><span class="mono" style="font-size:13px;color:#58606A">6,490</span></div><div role="option" aria-selected="false" style="display:flex;justify-content:space-between;gap:16px;padding:8px 16px;background:#fff;border-left:3px solid transparent"><span style="font-size:14px"><strong>NV352</strong> Navigator Lift Away Upright Vacuum, Hepa</span><span class="mono" style="font-size:13px;color:#58606A">6,094</span></div><div role="option" aria-selected="false" style="display:flex;justify-content:space-between;gap:16px;padding:8px 16px;background:#fff;border-left:3px solid transparent"><span style="font-size:14px"><strong>NV360</strong> Navigator Lift-Away Deluxe Upright Vacuu</span><span class="mono" style="font-size:13px;color:#58606A">5,791</span></div>
+      <div style="padding:10px 16px 0;font-size:13px;color:#58606A">More families below</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":640,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

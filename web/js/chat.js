@@ -1,7 +1,7 @@
-import { findProduct } from './data.js?v=202609232309';
-import { getView, setView, getPreviousView } from './state.js?v=202609232309';
-import { navigate } from './router.js?v=202609232309';
-import { monthShort } from './format.js?v=202609232309';
+import { findProduct } from './data.js?v=202609232353';
+import { getView, setView, getPreviousView } from './state.js?v=202609232353';
+import { navigate } from './router.js?v=202609232353';
+import { monthShort } from './format.js?v=202609232353';
 
 const MAX_LEN = 1000;
 let messages = [];
@@ -224,6 +224,8 @@ function everywhereChips() {
   return [
     'Which air fryers have the most refurbished reviews?',
     'Which product families grew most in 2021?',
+    'Find cases of cannibalisation',
+    'Which products dropped most after refurbished units appeared?',
     "What can't this tool tell me?",
   ];
 }

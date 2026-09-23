@@ -4,7 +4,7 @@
 // to its card's width via CSS (width:100%, height:auto) so nothing ever
 // forces a horizontal scrollbar and text is never stretched out of shape.
 
-import { monthShort, monthLong, monthIndex, intFmt, decFmt } from './format.js?v=202609232309';
+import { monthShort, monthLong, monthIndex, intFmt, decFmt } from './format.js?v=202609232353';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const MINUS = '−';
@@ -237,11 +237,14 @@ export function renderVolumeChart({
   const lastYear = Number(data[n - 1].m.slice(0, 4));
   const yStep = yearTickStep(firstYear, lastYear, plotW);
   let lastYear_ = null;
+  let lastTickX = null;
   data.forEach((row, i) => {
     const y = Number(row.m.slice(0, 4));
     const mo = row.m.slice(5, 7);
-    if ((mo === '01' || i === 0) && y !== lastYear_ && (y - firstYear) % yStep === 0) {
-      const x = padL + i * bw;
+    const x = padL + i * bw;
+    // skip a label that would collide with the previous one (e.g. a mid-year start followed by January)
+    if ((mo === '01' || i === 0) && y !== lastYear_ && (y - firstYear) % yStep === 0 && (lastTickX === null || x - lastTickX >= 40)) {
+      lastTickX = x;
       svg.appendChild(el('line', { x1: x, x2: x, y1: padTop + plotH, y2: padTop + plotH + 5, stroke: '#16191D' }));
       svg.appendChild(el('text', { x: x + 3, y: padTop + plotH + 18, 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: '#58606A' })).textContent = String(y);
       lastYear_ = y;
@@ -278,6 +281,219 @@ export function renderVolumeChart({
     hit.addEventListener('blur', () => hideTooltip(tip));
   }
 
+  return wrap;
+}
+
+/** Shared x-axis + event-marker + hatch drawing, used by both the volume and
+ * rating main charts so they read as the same timeline. Returns padTop. */
+function drawTimelineFrame(svg, { data, n, padL, plotW, bw, events, completeThrough, padTop, plotH }) {
+  const plotBottomY = padTop + plotH;
+  const sortedEvents = [...events].sort((a, b) => monthIndex(a.month) - monthIndex(b.month));
+  const findIndex = (m) => data.findIndex((r) => r.m === m);
+  const placedLabels = layoutEventLabels(sortedEvents, findIndex, padL, plotW, bw);
+
+  // incomplete-data hatch, spanning the full plot height
+  if (completeThrough) {
+    const completeIdx = monthIndex(completeThrough);
+    const firstIncomplete = data.findIndex((r) => monthIndex(r.m) > completeIdx);
+    if (firstIncomplete !== -1) {
+      const hatchX = padL + firstIncomplete * bw;
+      const defs = el('defs', {}, [
+        el('pattern', { id: 'hatch', width: 6, height: 6, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' }, [
+          el('line', { x1: 0, y1: 0, x2: 0, y2: 6, stroke: '#C3C9D0', 'stroke-width': 2 }),
+        ]),
+      ]);
+      svg.appendChild(defs);
+      svg.appendChild(el('rect', { x: hatchX, y: padTop, width: padL + plotW - hatchX, height: plotH, fill: 'url(#hatch)' }));
+      svg.appendChild(el('text', { x: padL + plotW - 4, y: padTop + 14, 'text-anchor': 'end', 'font-family': 'IBM Plex Sans', 'font-size': 11, fill: '#58606A' })).textContent = 'incomplete data';
+    }
+  }
+
+  // x axis with a collision-aware year interval
+  svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: plotBottomY, y2: plotBottomY, stroke: '#16191D', 'stroke-width': 1 }));
+  const firstYear = Number(data[0].m.slice(0, 4));
+  const yStep = yearTickStep(firstYear, Number(data[n - 1].m.slice(0, 4)), plotW);
+  let lastYear_ = null;
+  let lastTickX = null;
+  data.forEach((row, i) => {
+    const y = Number(row.m.slice(0, 4));
+    const mo = row.m.slice(5, 7);
+    const x = padL + i * bw;
+    // skip a label that would collide with the previous one (e.g. a mid-year start followed by January)
+    if ((mo === '01' || i === 0) && y !== lastYear_ && (y - firstYear) % yStep === 0 && (lastTickX === null || x - lastTickX >= 40)) {
+      lastTickX = x;
+      svg.appendChild(el('line', { x1: x, x2: x, y1: plotBottomY, y2: plotBottomY + 5, stroke: '#16191D' }));
+      svg.appendChild(el('text', { x: x + 3, y: plotBottomY + 18, 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: '#58606A' })).textContent = String(y);
+      lastYear_ = y;
+    }
+  });
+
+  // event markers: short labels, stacked rows, flipped left near the edge
+  for (const p of placedLabels) {
+    const labelY = padTop - 12 + p.row * 20;
+    svg.appendChild(el('line', { x1: p.x, x2: p.x, y1: labelY + 8, y2: plotBottomY, stroke: '#E0661B', 'stroke-width': 1.5, 'stroke-dasharray': '3 3' }));
+    svg.appendChild(el('rect', { x: p.start, y: labelY - 9, width: p.labelW, height: 18, fill: '#fff', stroke: '#E0661B' }));
+    const t = el('text', { x: p.start + 6, y: labelY + 4, 'font-family': 'IBM Plex Sans', 'font-size': 11, fill: '#16191D' });
+    t.textContent = p.text;
+    svg.appendChild(t);
+  }
+
+  return placedLabels;
+}
+
+function rowsUsedFor(events, data, padL, plotW, bw) {
+  const sortedEvents = [...events].sort((a, b) => monthIndex(a.month) - monthIndex(b.month));
+  const findIndex = (m) => data.findIndex((r) => r.m === m);
+  const placed = layoutEventLabels(sortedEvents, findIndex, padL, plotW, bw);
+  return placed.length ? Math.max(...placed.map((p) => p.row)) + 1 : 0;
+}
+
+/**
+ * Compact bars-only volume strip (used under the main chart when the
+ * Volume/Rating switch is set to Rating, so the reader keeps the volume
+ * context). No event labels or axis text: it reads alongside the main chart.
+ */
+export function renderVolumeStrip({ months, from, to, channels = { new: true, renewed: true }, width = 980, height = 90 }) {
+  const wrap = document.createElement('div');
+  const data = monthsInRange(months, from, to);
+  const n = data.length;
+  const padL = 44;
+  const padR = 16;
+  const padTop = 6;
+  const padBottom = 6;
+  const plotW = width - padL - padR;
+  const plotH = height - padTop - padBottom;
+  const totalW = plotW + padL + padR;
+  const bw = plotW / n;
+
+  const values = data.map((r) => (channels.new ? r.new || 0 : 0) + (channels.renewed ? r.renewed || 0 : 0));
+  const maxVal = Math.max(1, ...values);
+  const { niceMax } = niceStep(maxVal, 2);
+
+  const svg = makeSvg(totalW, height, 'Reviews per month (volume context)');
+  svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: padTop, y2: padTop, stroke: '#D5D9DE' }));
+  svg.appendChild(el('text', { x: padL - 8, y: padTop + 4, 'text-anchor': 'end', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: '#58606A' })).textContent = intFmt(niceMax);
+  svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: padTop + plotH, y2: padTop + plotH, stroke: '#16191D' }));
+  svg.appendChild(el('text', { x: padL - 8, y: padTop + plotH + 4, 'text-anchor': 'end', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: '#58606A' })).textContent = '0';
+
+  const barW = Math.max(1, bw * 0.72);
+  const tip = buildTooltip(wrap);
+  const hits = [];
+  data.forEach((row, i) => {
+    const x = padL + i * bw + (bw - barW) / 2;
+    let yCursor = padTop + plotH;
+    if (channels.new) {
+      const v = row.new || 0;
+      const h = (v / niceMax) * plotH;
+      svg.appendChild(el('rect', { x, y: yCursor - h, width: barW, height: Math.max(h, v > 0 ? 0.5 : 0), fill: '#3A4048' }));
+      yCursor -= h;
+    }
+    if (channels.renewed) {
+      const v = row.renewed || 0;
+      const h = (v / niceMax) * plotH;
+      svg.appendChild(el('rect', { x, y: yCursor - h, width: barW, height: Math.max(h, v > 0 ? 0.5 : 0), fill: '#8DBBF0' }));
+    }
+    const hit = el('rect', { x: padL + i * bw, y: padTop, width: bw, height: plotH, fill: 'transparent', tabindex: '0', role: 'img', 'aria-label': `${monthLong(row.m)}: ${intFmt((row.new || 0) + (row.renewed || 0))} reviews` });
+    svg.appendChild(hit);
+    hits.push({ hit, row, x: padL + i * bw + bw / 2 });
+  });
+
+  wrap.appendChild(svg);
+  for (const { hit, row, x } of hits) {
+    const lines = [monthLong(row.m)];
+    if (channels.new) lines.push(`New: ${intFmt(row.new || 0)}`);
+    if (channels.renewed) lines.push(`Refurbished: ${intFmt(row.renewed || 0)}`);
+    const show = (clientY) => {
+      const rect = wrap.getBoundingClientRect();
+      const svgRect = svg.getBoundingClientRect();
+      const scale = svgRect.width / totalW;
+      showTooltip(tip, wrap, x * scale, (clientY ?? rect.top + 10) - rect.top, lines);
+    };
+    hit.addEventListener('mouseenter', (e) => show(e.clientY));
+    hit.addEventListener('mousemove', (e) => show(e.clientY));
+    hit.addEventListener('mouseleave', () => hideTooltip(tip));
+    hit.addEventListener('focus', () => show(undefined));
+    hit.addEventListener('blur', () => hideTooltip(tip));
+  }
+  return wrap;
+}
+
+/**
+ * Main chart for the Rating measure: monthly average rating as lines (new
+ * units graphite, refurbished steel when shown) with dots per month that has
+ * data, same x axis / event markers / hatch as the volume chart.
+ */
+export function renderRatingMainChart({
+  months, from, to, channels = { new: true, renewed: true }, completeThrough,
+  events = [], width = 980, height = 300, ariaLabel = 'Average rating per month',
+}) {
+  const wrap = document.createElement('div');
+  const data = monthsInRange(months, from, to);
+  const n = data.length;
+  const padL = 44;
+  const padR = 16;
+  const padBottom = 28;
+  const plotW = width - padL - padR;
+  const bw = plotW / n;
+
+  const rowsUsed = rowsUsedFor(events, data, padL, plotW, bw);
+  const padTop = rowsUsed ? 20 + rowsUsed * 20 : 20;
+  const plotH = height - padTop - padBottom;
+  const totalW = plotW + padL + padR;
+
+  const seriesVals = [];
+  if (channels.new) data.forEach((r) => { if (r.rating_new !== null && r.rating_new !== undefined) seriesVals.push(r.rating_new); });
+  if (channels.renewed) data.forEach((r) => { if (r.rating_renewed !== null && r.rating_renewed !== undefined) seriesVals.push(r.rating_renewed); });
+  const allAbove3 = seriesVals.length > 0 && seriesVals.every((v) => v > 3);
+  const yMin = allAbove3 ? 3 : 1;
+  const yMax = 5;
+  const yStep = (yMax - yMin) <= 2 ? 0.5 : 1;
+  const yScale = (v) => padTop + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
+
+  const svg = makeSvg(totalW, height, ariaLabel);
+
+  for (let v = yMin; v <= yMax + 0.0001; v += yStep) {
+    const y = yScale(v);
+    svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: y, y2: y, stroke: '#D5D9DE', 'stroke-width': 1 }));
+    svg.appendChild(el('text', { x: padL - 8, y: y + 4, 'text-anchor': 'end', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: '#58606A' })).textContent = decFmt(v, yStep < 1 ? 1 : 0);
+  }
+
+  drawTimelineFrame(svg, { data, n, padL, plotW, bw, events, completeThrough, padTop, plotH });
+
+  function drawSeries(key, color) {
+    const pts = [];
+    const tip = buildTooltip(wrap);
+    const dots = [];
+    data.forEach((row, i) => {
+      const v = row[key];
+      if (v === null || v === undefined) return;
+      const x = padL + i * bw + bw / 2;
+      const y = yScale(Math.max(yMin, Math.min(yMax, v)));
+      pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+      dots.push({ x, y, v, m: row.m });
+    });
+    if (pts.length > 1) svg.appendChild(el('polyline', { fill: 'none', stroke: color, 'stroke-width': 1.5, points: pts.join(' ') }));
+    dots.forEach(({ x, y, v, m }) => {
+      const c = el('circle', {
+        cx: x, cy: y, r: 3, fill: color, tabindex: '0', role: 'img',
+        'aria-label': `${monthLong(m)}: rating ${decFmt(v, 2)}`,
+      });
+      const show = (clientY) => {
+        const rect = wrap.getBoundingClientRect();
+        showTooltip(tip, wrap, x, (clientY ?? rect.top + 20) - rect.top, [monthLong(m), `Rating: ${decFmt(v, 2)}`]);
+      };
+      c.addEventListener('mouseenter', (e) => show(e.clientY));
+      c.addEventListener('mousemove', (e) => show(e.clientY));
+      c.addEventListener('mouseleave', () => hideTooltip(tip));
+      c.addEventListener('focus', () => show(undefined));
+      c.addEventListener('blur', () => hideTooltip(tip));
+      svg.appendChild(c);
+    });
+  }
+  if (channels.new) drawSeries('rating_new', '#3A4048');
+  if (channels.renewed) drawSeries('rating_renewed', '#8DBBF0');
+
+  wrap.appendChild(svg);
   return wrap;
 }
 

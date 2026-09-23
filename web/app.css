@@ -256,8 +256,16 @@ svg text { user-select: none; }
 .families-head h2 { font-size: 17px; }
 .families-table-wrap { overflow-x: auto; }
 table.families-table { background: var(--white); border: 1px solid var(--hairline); border-radius: var(--radius-md); border-collapse: collapse; width: 100%; font-size: 14px; min-width: 640px; }
-table.families-table th { padding: 10px 12px; font-weight: 600; text-align: left; background: var(--paper); }
+table.families-table th { padding: 0; font-weight: 600; text-align: left; background: var(--paper); }
 table.families-table th.num, table.families-table td.num { text-align: right; }
+table.families-table th .sort-btn {
+  width: 100%; height: auto; border: none; background: transparent; border-radius: 0;
+  padding: 10px 12px; font-weight: 600; font-size: 14px; color: var(--ink);
+  display: flex; align-items: center; gap: 6px; cursor: pointer;
+}
+table.families-table th.num .sort-btn { justify-content: flex-end; flex-direction: row-reverse; }
+table.families-table th .sort-btn:hover { color: var(--tag-orange); }
+table.families-table th .sort-btn svg { flex-shrink: 0; }
 table.families-table td { padding: 10px 12px; border-top: 1px solid var(--hairline); }
 table.families-table tbody tr { cursor: pointer; }
 table.families-table tbody tr:hover { background: var(--row-hover); }
@@ -304,6 +312,7 @@ table.families-table tbody tr:focus-visible { outline: 2px solid var(--focus); o
 
 .chart-card h2 { font-size: 17px; margin-left: 12px; }
 .chart-card .card-sub { font-size: 13px; color: var(--muted); margin: 0 0 0 12px; }
+.chart-subject { font-size: 13px; font-weight: 400; font-family: var(--font-sans); color: var(--muted); margin: -4px 0 4px 12px; text-transform: none; }
 /* Charts are fluid SVG (viewBox + width:100%) and never need to scroll. */
 .hint-text { font-size: 12px; color: var(--muted); margin: 4px 0 0 12px; }
 
@@ -362,6 +371,26 @@ table.families-table tbody tr:focus-visible { outline: 2px solid var(--focus); o
 .findings-meta { font-size: 13px; color: var(--muted); }
 .findings-explain { font-size: 14px; line-height: 1.6; max-width: 860px; }
 .findings-closing { font-size: 14px; line-height: 1.6; max-width: 860px; color: var(--muted); margin-top: 8px; }
+
+/* ---------- cases (Findings page) ---------- */
+.case-group { background: var(--white); border: 1px solid var(--hairline); border-radius: var(--radius-md); padding: 20px; display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+.case-group h3 { font-size: 17px; }
+.segmented { display: inline-flex; border: 1px solid var(--grey-border); border-radius: 3px; overflow: hidden; width: fit-content; }
+.segmented-btn { height: 34px; padding: 0 14px; border: none; border-radius: 0; background: var(--white); color: var(--ink); font-size: 13px; font-weight: 500; cursor: pointer; }
+.segmented-btn + .segmented-btn { border-left: 1px solid var(--grey-border); }
+.segmented-btn.active { background: var(--ink); color: var(--white); }
+.case-headline { font-size: 15px; font-weight: 600; margin: 0; }
+.case-list { display: flex; flex-direction: column; }
+.case-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid var(--hairline); flex-wrap: wrap; }
+.case-info { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.case-model { font-weight: 700; font-size: 14px; }
+.case-title { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; }
+.case-month { font-size: 13px; color: var(--muted); }
+.case-flag { font-size: 12px; color: var(--tag-orange); border: 1px solid var(--tag-orange); border-radius: 3px; padding: 2px 8px; }
+.case-change { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+.case-change-value { font-size: 14px; }
+.case-change-range { font-size: 12px; color: var(--muted); }
+.case-more { align-self: flex-start; margin-top: 4px; border-radius: 3px; }
 
 /* ---------- method page ---------- */
 .method-intro { max-width: 900px; }
@@ -452,6 +481,13 @@ table.families-table tbody tr:focus-visible { outline: 2px solid var(--focus); o
 .tour-actions button { padding: 0 14px; }
 .tour-card[hidden], .tour-dim[hidden], .tour-cutout[hidden] { display: none; }
 
+/* ---------- intro carousel (centered, not pointing at anything) ---------- */
+.carousel-card {
+  left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 420px;
+}
+.carousel-card[hidden] { display: none; }
+
 @media (max-width: 900px) {
   .product-rail { width: 100%; }
   .event-setup { width: 100%; }
@@ -474,3 +510,7 @@ table.families-table tbody tr:focus-visible { outline: 2px solid var(--focus); o
 /* Chart hover/focus targets: no default (thick, rounded) focus ring on click; keyboard focus gets a thin square outline. */
 svg [tabindex]:focus { outline: none; }
 svg [tabindex]:focus-visible { outline: none; stroke: var(--focus); stroke-width: 1.5; }
+
+.untested-group { border-top: 1px solid var(--hairline); padding: 12px 0; }
+.untested-group > summary { cursor: pointer; font-size: 14px; color: var(--muted); }
+.untested-group[open] > summary { margin-bottom: 8px; }

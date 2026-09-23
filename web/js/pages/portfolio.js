@@ -1,8 +1,8 @@
-import { loadPortfolio, loadProducts } from '../data.js?v=202609232309';
-import { renderVolumeChart } from '../charts.js?v=202609232309';
-import { intFmt, monthLong, humanizeType } from '../format.js?v=202609232309';
-import { setView } from '../state.js?v=202609232309';
-import { navigate } from '../router.js?v=202609232309';
+import { loadPortfolio, loadProducts } from '../data.js?v=202609232353';
+import { renderVolumeChart } from '../charts.js?v=202609232353';
+import { intFmt, monthLong, humanizeType } from '../format.js?v=202609232353';
+import { setView } from '../state.js?v=202609232353';
+import { navigate } from '../router.js?v=202609232353';
 
 function computeTakeaway(months, completeThrough) {
   const byYear = new Map();
@@ -21,9 +21,29 @@ function computeTakeaway(months, completeThrough) {
   const endTotal = byYear.get(endYear) || 0;
   const ratio = endTotal / startTotal;
   const ratioText = ratio >= 10 ? `${Math.round(ratio)}×` : `${ratio.toFixed(1)}×`;
-  const [cy, cm] = completeThrough.split('-');
   const monthName = monthLong(completeThrough);
   return `Review volume grew about ${ratioText} from ${startYear} to ${endYear}; data thins after ${monthName}`;
+}
+
+const COLUMNS = [
+  { key: 'family', label: 'Family', type: 'text', heading: 'Product families by family code', accessor: (f) => f.family },
+  { key: 'type', label: 'Main type', type: 'text', heading: 'Product families by main type', accessor: (f) => humanizeType(f.type) },
+  { key: 'products', label: 'Products', type: 'num', heading: 'Largest product families by products', accessor: (f) => f.products },
+  { key: 'reviews_new', label: 'New-unit reviews', type: 'num', heading: 'Largest product families by new-unit reviews', accessor: (f) => f.reviews_new },
+  { key: 'reviews_renewed', label: 'Refurbished reviews', type: 'num', heading: 'Largest product families by refurbished reviews', accessor: (f) => f.reviews_renewed },
+  {
+    key: 'share',
+    label: 'Refurbished share',
+    type: 'num',
+    heading: 'Largest product families by refurbished share',
+    accessor: (f) => { const t = f.reviews_new + f.reviews_renewed; return t > 0 ? f.reviews_renewed / t : 0; },
+  },
+];
+
+function sortIconSvg(state) {
+  if (state === 'ascending') return '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 2l3 4H2z" fill="currentColor"/></svg>';
+  if (state === 'descending') return '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 8L2 4h6z" fill="currentColor"/></svg>';
+  return '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" style="opacity:.35"><path d="M5 1l2.5 3h-5zM5 9l-2.5-3h5z" fill="currentColor"/></svg>';
 }
 
 export async function render(container) {
@@ -45,31 +65,44 @@ export async function render(container) {
 
   const chartCard = document.createElement('div');
   chartCard.className = 'card';
+  const subjectLine = document.createElement('p');
+  subjectLine.className = 'chart-subject';
+  subjectLine.textContent = 'Written Amazon reviews per month, the only demand signal in this data.';
+  chartCard.appendChild(subjectLine);
   const legend = document.createElement('div');
   legend.className = 'legend-row';
   legend.innerHTML = `
     <span class="legend-swatch"><span class="legend-dot" style="background:var(--graphite)"></span>New units</span>
     <span class="legend-swatch"><span class="legend-dot" style="background:var(--steel)"></span>Refurbished</span>
-    <span>All Shark, Ninja and Euro-Pro products, reviews per month</span>
+    <span>All Shark, Ninja and Euro-Pro products</span>
   `;
   chartCard.appendChild(legend);
-  const first = portfolio.months[0]?.m;
+  const chartStart = portfolio.chart_start || portfolio.months[0]?.m;
   const last = portfolio.months[portfolio.months.length - 1]?.m;
   chartCard.appendChild(renderVolumeChart({
     months: portfolio.months,
-    from: first,
+    from: chartStart,
     to: last,
     channels: { new: true, renewed: true },
     completeThrough: portfolio.complete_through,
     width: 1376,
     height: 260,
   }));
+  if (portfolio.reviews_before_chart_start) {
+    const beforeYear = Number(portfolio.months[0].m.slice(0, 4));
+    const afterYear = Number(chartStart.slice(0, 4)) - 1;
+    const note = document.createElement('p');
+    note.className = 'field-note';
+    note.style.margin = '4px 0 0 12px';
+    const range = beforeYear === afterYear ? String(beforeYear) : `${beforeYear} to ${afterYear}`;
+    note.textContent = `${range} hold ${intFmt(portfolio.reviews_before_chart_start)} reviews in total and are not drawn.`;
+    chartCard.appendChild(note);
+  }
   container.appendChild(chartCard);
 
   const head = document.createElement('div');
   head.className = 'families-head';
   const h2 = document.createElement('h2');
-  h2.textContent = 'Largest product families by review volume';
   head.appendChild(h2);
   const filterRow = document.createElement('div');
   filterRow.className = 'filter-row';
@@ -89,15 +122,14 @@ export async function render(container) {
   tableWrap.className = 'families-table-wrap';
   const table = document.createElement('table');
   table.className = 'families-table';
-  table.innerHTML = `
-    <thead><tr>
-      <th scope="col">Family</th><th scope="col">Main type</th>
-      <th scope="col" class="num">Products</th><th scope="col" class="num">New-unit reviews</th>
-      <th scope="col" class="num">Refurbished reviews</th><th scope="col" class="num">Refurbished share</th>
-    </tr></thead>
-    <tbody></tbody>
-  `;
-  const tbody = table.querySelector('tbody');
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  table.appendChild(tbody);
+
+  const sortState = { key: 'reviews_new', dir: 'desc' };
 
   function familyLargestProduct(familyCode) {
     const inFamily = products.filter((p) => p.family === familyCode);
@@ -112,11 +144,53 @@ export async function render(container) {
     navigate(`/product/${p.id}`);
   }
 
+  function drawHeader() {
+    headRow.innerHTML = '';
+    for (const col of COLUMNS) {
+      const th = document.createElement('th');
+      th.scope = 'col';
+      if (col.type === 'num') th.classList.add('num');
+      const active = sortState.key === col.key;
+      const ariaState = active ? (sortState.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+      th.setAttribute('aria-sort', ariaState);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sort-btn';
+      btn.innerHTML = `<span>${col.label}</span>${sortIconSvg(active ? ariaState : 'none')}`;
+      btn.addEventListener('click', () => {
+        if (sortState.key === col.key) {
+          sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortState.key = col.key;
+          sortState.dir = col.type === 'num' ? 'desc' : 'asc';
+        }
+        drawHeader();
+        drawTable();
+      });
+      th.appendChild(btn);
+      headRow.appendChild(th);
+    }
+  }
+
   function drawTable() {
+    const col = COLUMNS.find((c) => c.key === sortState.key);
+    h2.textContent = col.heading;
     const filterType = typeSelect.value;
-    const rows = [...portfolio.families]
-      .filter((f) => !filterType || f.type === filterType)
-      .sort((a, b) => (b.reviews_new + b.reviews_renewed) - (a.reviews_new + a.reviews_renewed));
+    const rows = [...portfolio.families].filter((f) => !filterType || f.type === filterType);
+    rows.sort((a, b) => {
+      // Refurbished share is only meaningful with real new-unit volume: families with fewer than 50 new-unit
+      // reviews (often refurbished-only listings) always sort to the bottom for that column.
+      if (col.key === 'share') {
+        const aw = a.reviews_new >= 50, bw = b.reviews_new >= 50;
+        if (aw !== bw) return aw ? -1 : 1;
+      }
+      const av = col.accessor(a);
+      const bv = col.accessor(b);
+      let cmp;
+      if (col.type === 'num') cmp = av - bv;
+      else cmp = String(av).localeCompare(String(bv));
+      return sortState.dir === 'asc' ? cmp : -cmp;
+    });
     tbody.innerHTML = '';
     for (const f of rows) {
       const total = f.reviews_new + f.reviews_renewed;
@@ -143,6 +217,7 @@ export async function render(container) {
     }
   }
   typeSelect.addEventListener('change', drawTable);
+  drawHeader();
   drawTable();
 
   tableWrap.appendChild(table);

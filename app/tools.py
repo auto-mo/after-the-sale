@@ -283,6 +283,44 @@ class ToolBox:
                                "products that had no such event; it is not the raw change in reviews."}
 
     # ------------------------------------------------------------------
+    # 3b. find_cases: the largest observed moves among tested events (demo scenarios, e.g. cannibalisation)
+    # ------------------------------------------------------------------
+    CASE_TYPES = ("sibling_launch", "refurbished", "low_rating")
+
+    def find_cases(self, event_type: str, direction: str = "down", type: str | None = None,
+                   family: str | None = None, limit: int = 5) -> dict:
+        if event_type not in self.CASE_TYPES:
+            raise ToolError(f"event_type must be one of {self.CASE_TYPES}")
+        if direction not in ("down", "up"):
+            raise ToolError("direction must be 'down' or 'up'")
+        limit = max(1, min(int(limit or 5), 10))
+        sql = ("SELECT e.product_id, p.model_key, p.canonical_title, p.product_type, e.event_id, e.event_type, "
+               "e.event_month, e.detail, e.verdict, e.reason, e.effect_pct, e.lo_pct, e.hi_pct, e.pre_mean, e.post_mean, "
+               "e.n_controls, e.control_tier, e.near_zero_after "
+               "FROM sn_event_test e JOIN sn_product_summary p USING (product_id) "
+               "WHERE e.event_type = ? AND e.verdict <> 'not_enough_data' AND e.effect_pct IS NOT NULL")
+        params: list[Any] = [event_type]
+        if type:
+            sql += " AND p.product_type = ?"
+            params.append(self._norm_type(type))
+        if family:
+            sql += " AND p.family = ?"
+            params.append(family.upper())
+        sql += f" ORDER BY e.effect_pct {'ASC' if direction == 'down' else 'DESC'} LIMIT ?"
+        params.append(limit)
+        rows = self._query(sql, params)
+        for r in rows:
+            r["plain_summary"] = _event_summary(r)
+            r["change_vs_comparison_pct"] = r.pop("effect_pct")
+        return {
+            "event_type": event_type, "direction": direction, "cases": rows, "count": len(rows),
+            "how_to_read": ("These are the largest observed changes versus similar products among events with enough data. "
+                            "None survives the false-discovery check across all 819 tested events, so present each as a case "
+                            "worth inspecting on its evidence page, never as a proven effect. For cannibalisation use "
+                            "event_type=sibling_launch, direction=down. Flag near_zero_after cases as possible discontinuations."),
+        }
+
+    # ------------------------------------------------------------------
     # 4. rank_products
     # ------------------------------------------------------------------
     GROWTH_DEFINITION = (
@@ -672,6 +710,26 @@ TOOL_SCHEMAS: list[dict] = [
         },
     },
     {
+        "name": "find_cases",
+        "description": (
+            "Find real historical cases worth inspecting: the tested events with the largest change versus similar "
+            "products. Cannibalisation = event_type 'sibling_launch' with direction 'down'. Use for 'find me cases/"
+            "examples of ...' questions. Optional product type or family filter."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "event_type": {"type": "string", "enum": ["sibling_launch", "refurbished", "low_rating"]},
+                "direction": {"type": "string", "enum": ["down", "up"], "description": "Largest drops or largest rises. Default 'down'."},
+                "type": {"type": "string", "description": "Optional product type, e.g. 'air fryer', 'stick vacuum'."},
+                "family": {"type": "string", "description": "Optional model family prefix, e.g. 'NV', 'BL'."},
+                "limit": {"type": "integer", "description": "Max cases, 1-10. Default 5."},
+            },
+            "required": ["event_type"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "get_findings",
         "description": (
             "Get the portfolio-level findings: pooled event-study averages (sibling launch, "
@@ -745,6 +803,7 @@ def dispatch(toolbox: ToolBox, name: str, input_: dict) -> Any:
         "get_product_events": toolbox.get_product_events,
         "rank_products": toolbox.rank_products,
         "get_findings": toolbox.get_findings,
+        "find_cases": toolbox.find_cases,
         "search_reviews": toolbox.search_reviews,
         "set_view": toolbox.set_view,
     }

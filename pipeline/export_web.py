@@ -121,6 +121,26 @@ portfolio = dict(
     matcher=dict(benchmark_f1=0.852, sn_precision=0.869, sn_recall=0.914, sn_precision_adjudicated=0.948,
                  sn_recall_adjudicated=0.917),
 )
+# Demo cases: for each event type, the largest observed moves in each direction among tested events.
+# None survives the false-discovery check, so these are cases to inspect, never proven effects.
+Tt = T[T.verdict != "not_enough_data"].merge(S[["product_id", "canonical_title", "model_key", "product_type"]], on="product_id")
+cases = {}
+for et, g in Tt.groupby("event_type"):
+    def pick(df):
+        return [rec(dict(event_id=r.event_id, product_id=r.product_id, file=file_of(r.product_id), title=r.canonical_title,
+                         model=r.model_key, type=r.product_type, month=r.event_month, detail=r.detail, effect_pct=r.effect_pct,
+                         lo_pct=r.lo_pct, hi_pct=r.hi_pct, pre_mean=r.pre_mean, post_mean=r.post_mean, n_controls=r.n_controls,
+                         control_tier=r.control_tier, near_zero_after=r.near_zero_after, verdict=r.verdict))
+                for r in df.itertuples()]
+    cases[et] = dict(down=pick(g.nsmallest(8, "effect_pct")), up=pick(g.nlargest(8, "effect_pct")), tested=int(len(g)))
+portfolio["cases"] = cases
+portfolio["cases_note"] = ("Largest observed changes among tested events. None survives the false-discovery check across all "
+                           "events, so each is a case worth inspecting, not a proven effect.")
+# The chart starts in 2010: 2002-2009 hold very few reviews in total (reported, not hidden).
+portfolio["chart_start"] = "2010-01"
+portfolio["reviews_before_chart_start"] = int(P[P.m < "2010-01"].reviews.sum())
+# A default product that shows every part of the tool: real refurbished volume and tested events of all three kinds.
+portfolio["default_product"] = "SN-HV322"
 (OUT / "portfolio.json").write_text(json.dumps(portfolio, separators=(",", ":")))
 size = sum(f.stat().st_size for f in OUT.rglob("*.json"))
 print(f"products {len(products):,}; product files {len(list((OUT / 'p').glob('*.json'))):,}; total {size / 1e6:.1f} MB")

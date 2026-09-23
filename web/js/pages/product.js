@@ -1,8 +1,8 @@
-import { loadProductDetail, loadPortfolio } from '../data.js?v=202609232309';
-import { renderVolumeChart, renderRatingStrip, monthsInRange } from '../charts.js?v=202609232309';
-import { intFmt, decFmt, pctFmt, rangeFmt, monthShort, monthLong, dateShort, monthIndex, humanizeLaunchSource, humanizeType, EMPTY } from '../format.js?v=202609232309';
-import { view, setView, onViewChanged } from '../state.js?v=202609232309';
-import { navigate } from '../router.js?v=202609232309';
+import { loadProductDetail, loadPortfolio } from '../data.js?v=202609232353';
+import { renderVolumeChart, renderRatingStrip, renderRatingMainChart, renderVolumeStrip, monthsInRange } from '../charts.js?v=202609232353';
+import { intFmt, decFmt, pctFmt, rangeFmt, monthShort, monthLong, dateShort, monthIndex, humanizeLaunchSource, humanizeType, EMPTY } from '../format.js?v=202609232353';
+import { view, setView, onViewChanged } from '../state.js?v=202609232353';
+import { navigate } from '../router.js?v=202609232353';
 
 const EVENT_TYPE_LABEL = {
   sibling_launch: 'Sibling launch',
@@ -61,11 +61,23 @@ function computeVolumeTakeaway(months, from, to, channels) {
 function computeRatingTakeaway(months, from, to, channels) {
   const data = monthsInRange(months, from, to);
   const series = channels.new ? 'rating_new' : 'rating_renewed';
-  const vals = data.map((r) => r[series]).filter((v) => v !== null && v !== undefined);
-  if (!vals.length) return 'No rating data in the selected window';
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
-  return `Average rating ranged from ${decFmt(min, 2)} to ${decFmt(max, 2)} across the shown months`;
+  const pts = data.filter((r) => r[series] !== null && r[series] !== undefined).map((r) => ({ v: r[series], m: r.m }));
+  if (!pts.length) return 'No rating data in the selected window';
+  const min = pts.reduce((a, b) => (b.v < a.v ? b : a));
+  const max = pts.reduce((a, b) => (b.v > a.v ? b : a));
+  if (min.m === max.m) return `Average rating was ${decFmt(min.v, 2)} in ${monthLong(min.m)}`;
+  return `Rating peaked at ${decFmt(max.v, 2)} in ${monthLong(max.m)}, lowest was ${decFmt(min.v, 2)} in ${monthLong(min.m)}`;
+}
+
+function windowTotals(months, from, to) {
+  const data = monthsInRange(months, from, to);
+  let newTotal = 0;
+  let renewedTotal = 0;
+  for (const row of data) {
+    newTotal += row.new || 0;
+    renewedTotal += row.renewed || 0;
+  }
+  return { new: newTotal, renewed: renewedTotal, total: newTotal + renewedTotal };
 }
 
 export async function render(container, params) {
@@ -181,59 +193,95 @@ export async function render(container, params) {
 
   const chartTitle = document.createElement('h2');
   chartCard.appendChild(chartTitle);
+  const subjectLine = document.createElement('p');
+  subjectLine.className = 'chart-subject';
+  chartCard.appendChild(subjectLine);
   const legend = document.createElement('div');
   legend.className = 'legend-row';
-  legend.innerHTML = `
-    <span class="legend-swatch"><span class="legend-dot" style="background:var(--graphite)"></span>New units</span>
-    <span class="legend-swatch"><span class="legend-dot" style="background:var(--steel)"></span>Refurbished</span>
-    <span class="legend-swatch"><span class="legend-dash"></span>Event</span>
-  `;
   chartCard.appendChild(legend);
-  const volumeChartHolder = document.createElement('div');
-  chartCard.appendChild(volumeChartHolder);
+  const refurbNote = document.createElement('p');
+  refurbNote.className = 'field-note';
+  refurbNote.style.margin = '0 0 0 12px';
+  refurbNote.hidden = true;
+  chartCard.appendChild(refurbNote);
+  const mainChartHolder = document.createElement('div');
+  chartCard.appendChild(mainChartHolder);
   chartCard.appendChild(hint);
 
   const ratingHead = document.createElement('div');
   ratingHead.className = 'rating-row-head';
-  ratingHead.innerHTML = `
-    <span class="rr-title">Monthly average rating</span>
-    <span class="rr-note"><span class="rr-dot"></span>months below 4.4</span>
-  `;
   chartCard.appendChild(ratingHead);
-  const ratingChartHolder = document.createElement('div');
-  chartCard.appendChild(ratingChartHolder);
+  const rrTitle = document.createElement('span');
+  rrTitle.className = 'rr-title';
+  const rrNote = document.createElement('span');
+  rrNote.className = 'rr-note';
+  rrNote.innerHTML = '<span class="rr-dot"></span>months below 4.4';
+  ratingHead.appendChild(rrTitle);
+  ratingHead.appendChild(rrNote);
+  const secondaryChartHolder = document.createElement('div');
+  chartCard.appendChild(secondaryChartHolder);
 
   function eventMarkersFor(chartFrom, chartTo) {
     return detail.events
       .filter((e) => monthIndex(e.month) >= monthIndex(chartFrom) && monthIndex(e.month) <= monthIndex(chartTo))
+      // Only tested events are marked, matching the rail; untested ones would crowd the chart without adding insight.
+      .filter((e) => e.verdict !== 'not_enough_data')
       .map((e) => ({ month: e.month, type: e.type, detail: e.detail }));
+  }
+
+  function updateLegend(channels, totals) {
+    const isRating = view.measure === 'rating';
+    subjectLine.textContent = isRating ? 'Average star rating per month.' : 'Written Amazon reviews per month.';
+    legend.innerHTML = `
+      <span class="legend-swatch"><span class="legend-dot" style="background:var(--graphite)"></span>New units (${intFmt(totals.new)})</span>
+      <span class="legend-swatch"><span class="legend-dot" style="background:var(--steel)"></span>Refurbished (${intFmt(totals.renewed)})</span>
+      <span class="legend-swatch"><span class="legend-dash"></span>Event</span>
+    `;
+    const refurbShare = totals.total > 0 ? totals.renewed / totals.total : 0;
+    if (totals.renewed > 0 && refurbShare < 0.02) {
+      refurbNote.hidden = false;
+      refurbNote.textContent = `Refurbished reviews are too few to see at this scale (${intFmt(totals.renewed)} in this window).`;
+    } else {
+      refurbNote.hidden = true;
+    }
   }
 
   function redrawCharts() {
     const channels = { new: view.channels.new, renewed: view.channels.renewed };
-    chartTitle.textContent = view.measure === 'rating'
+    const isRating = view.measure === 'rating';
+    const totals = windowTotals(detail.months, view.from, view.to);
+    updateLegend(channels, totals);
+    chartTitle.textContent = isRating
       ? computeRatingTakeaway(detail.months, view.from, view.to, channels)
       : computeVolumeTakeaway(detail.months, view.from, view.to, channels);
-    volumeChartHolder.innerHTML = '';
-    volumeChartHolder.appendChild(renderVolumeChart({
-      months: detail.months,
-      from: view.from,
-      to: view.to,
-      channels,
-      completeThrough: portfolio.complete_through,
-      events: eventMarkersFor(view.from, view.to),
-      width: 980,
-      height: 300,
-    }));
-    ratingChartHolder.innerHTML = '';
-    ratingChartHolder.appendChild(renderRatingStrip({
-      months: detail.months,
-      from: view.from,
-      to: view.to,
-      series: channels.new ? 'rating_new' : 'rating_renewed',
-      width: 980,
-      height: 100,
-    }));
+
+    mainChartHolder.innerHTML = '';
+    const events = eventMarkersFor(view.from, view.to);
+    if (isRating) {
+      mainChartHolder.appendChild(renderRatingMainChart({
+        months: detail.months, from: view.from, to: view.to, channels,
+        completeThrough: portfolio.complete_through, events, width: 980, height: 300,
+      }));
+    } else {
+      mainChartHolder.appendChild(renderVolumeChart({
+        months: detail.months, from: view.from, to: view.to, channels,
+        completeThrough: portfolio.complete_through, events, width: 980, height: 300,
+      }));
+    }
+
+    rrTitle.textContent = isRating ? 'Monthly review volume' : 'Monthly average rating';
+    rrNote.hidden = isRating;
+    secondaryChartHolder.innerHTML = '';
+    if (isRating) {
+      secondaryChartHolder.appendChild(renderVolumeStrip({
+        months: detail.months, from: view.from, to: view.to, channels, width: 980, height: 90,
+      }));
+    } else {
+      secondaryChartHolder.appendChild(renderRatingStrip({
+        months: detail.months, from: view.from, to: view.to,
+        series: channels.new ? 'rating_new' : 'rating_renewed', width: 980, height: 100,
+      }));
+    }
   }
 
   function syncControlsFromView() {
@@ -298,7 +346,20 @@ export async function render(container, params) {
     rail.appendChild(none);
   }
 
-  for (const ev of detail.events) {
+  // Tested events first (moved, then no clear change), each group in date order; untested ones go in a
+  // collapsed group underneath, since they carry no insight on their own.
+  const RANK = { moved: 0, no_clear_change: 1, not_enough_data: 2 };
+  const ordered = [...detail.events].sort((a, b) => (RANK[a.verdict] ?? 3) - (RANK[b.verdict] ?? 3) || String(a.month).localeCompare(String(b.month)));
+  const tested = ordered.filter((e) => e.verdict !== 'not_enough_data');
+  const untested = ordered.filter((e) => e.verdict === 'not_enough_data');
+  if (detail.events.length && !tested.length) {
+    const noneTested = document.createElement('p');
+    noneTested.className = 'rail-intro';
+    noneTested.textContent = 'None of this product\'s events had enough data to test.';
+    rail.appendChild(noneTested);
+  }
+  let target = rail;
+  const renderEvent = (ev) => {
     const item = document.createElement('div');
     item.className = 'event-item';
     const head = document.createElement('div');
@@ -345,7 +406,19 @@ export async function render(container, params) {
     link.textContent = 'Open the evidence';
     item.appendChild(link);
 
-    rail.appendChild(item);
+    target.appendChild(item);
+  };
+  tested.forEach(renderEvent);
+  if (untested.length) {
+    const group = document.createElement('details');
+    group.className = 'untested-group';
+    const sum = document.createElement('summary');
+    sum.textContent = `${untested.length} event${untested.length === 1 ? '' : 's'} without enough data to test`;
+    group.appendChild(sum);
+    rail.appendChild(group);
+    target = group;
+    untested.forEach(renderEvent);
+    target = rail;
   }
 
   const notTestable = document.createElement('div');

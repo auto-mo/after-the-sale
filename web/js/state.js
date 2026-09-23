@@ -7,7 +7,7 @@ const bus = new EventTarget();
  * which channels, and volume vs rating. This is the single source of truth
  * the chat drawer's `view` payload maps onto. */
 export const view = {
-  productId: 'SN-AF101',
+  productId: null, // set once from portfolio.default_product before the router's first render
   from: null, // month string, filled in once the product loads
   to: null,
   channels: { new: true, renewed: true },
@@ -15,6 +15,14 @@ export const view = {
 };
 
 let previousView = null;
+
+/** Called once at boot with portfolio.default_product. Never overrides a
+ * product already chosen (e.g. by a deep link resolved first). Goes through
+ * setView so anything already listening (the picker's button label) picks it
+ * up even if it rendered before the default arrived. */
+export function ensureDefaultProduct(id) {
+  if (!view.productId) setView({ productId: id });
+}
 
 export function getView() {
   return { productId: view.productId, from: view.from, to: view.to, channels: { ...view.channels }, measure: view.measure };

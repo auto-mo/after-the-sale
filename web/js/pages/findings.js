@@ -1,5 +1,24 @@
-import { loadPortfolio } from '../data.js?v=202609232309';
-import { intFmt, pctFmt, rangeFmt, decFmt } from '../format.js?v=202609232309';
+import { loadPortfolio } from '../data.js?v=202609232353';
+import { intFmt, pctFmt, rangeFmt, decFmt, monthShort } from '../format.js?v=202609232353';
+
+const CASE_GROUP_LABEL = {
+  sibling_launch: 'Sibling launch',
+  refurbished: 'Refurbished units appear',
+  low_rating: 'Low-rating month',
+};
+
+const CASE_HEADLINE = {
+  sibling_launch: { down: 'Largest drops after a sibling launched: possible cannibalisation', up: 'Largest rises after a sibling launched' },
+  refurbished: { down: 'Largest drops after refurbished units appeared', up: 'Largest rises after refurbished units appeared' },
+  low_rating: { down: 'Largest drops after a low-rating month', up: 'Largest rises after a low-rating month' },
+};
+
+const ROWS_COLLAPSED = 5;
+
+function shortTitle(title, max = 64) {
+  if (!title || title.length <= max) return title || '';
+  return `${title.slice(0, max - 1).trimEnd()}…`;
+}
 
 const QUESTIONS = [
   {
@@ -91,4 +110,143 @@ export async function render(container) {
   const tested = portfolio.stats.events_tested;
   closing.textContent = `Single events are not detectable: 0 of ${intFmt(tested)} survive the false-discovery check applied across every event tested. A fake-date test, run on 3,868 events with no real event behind them, found the method would call a single event "Moved" about 1 time in 10 by chance alone. The averages above, pooled across hundreds of events, are the level at which this data can support a claim.`;
   container.appendChild(closing);
+
+  if (portfolio.cases) renderCases(container, portfolio.cases, portfolio.cases_note);
+}
+
+function renderCases(container, cases, note) {
+  const section = document.createElement('section');
+  section.style.marginTop = '32px';
+
+  const h2 = document.createElement('h2');
+  h2.style.marginBottom = '8px';
+  h2.textContent = 'Cases worth a closer look';
+  section.appendChild(h2);
+
+  if (note) {
+    const p = document.createElement('p');
+    p.className = 'findings-meta';
+    p.style.marginBottom = '18px';
+    p.textContent = note;
+    section.appendChild(p);
+  }
+
+  for (const type of ['sibling_launch', 'refurbished', 'low_rating']) {
+    const group = cases[type];
+    if (!group) continue;
+    section.appendChild(renderCaseGroup(type, group));
+  }
+
+  container.appendChild(section);
+}
+
+function renderCaseGroup(type, group) {
+  const wrap = document.createElement('div');
+  wrap.className = 'case-group';
+
+  const h3 = document.createElement('h3');
+  h3.textContent = CASE_GROUP_LABEL[type] || type;
+  wrap.appendChild(h3);
+
+  const segRow = document.createElement('div');
+  segRow.className = 'segmented';
+  segRow.setAttribute('role', 'tablist');
+  segRow.setAttribute('aria-label', `${CASE_GROUP_LABEL[type]} direction`);
+  const dropsBtn = document.createElement('button');
+  dropsBtn.type = 'button';
+  dropsBtn.className = 'segmented-btn active';
+  dropsBtn.textContent = 'Largest drops';
+  dropsBtn.setAttribute('role', 'tab');
+  dropsBtn.setAttribute('aria-selected', 'true');
+  const risesBtn = document.createElement('button');
+  risesBtn.type = 'button';
+  risesBtn.className = 'segmented-btn';
+  risesBtn.textContent = 'Largest rises';
+  risesBtn.setAttribute('role', 'tab');
+  risesBtn.setAttribute('aria-selected', 'false');
+  segRow.appendChild(dropsBtn);
+  segRow.appendChild(risesBtn);
+  wrap.appendChild(segRow);
+
+  const headline = document.createElement('p');
+  headline.className = 'case-headline';
+  wrap.appendChild(headline);
+
+  const list = document.createElement('div');
+  list.className = 'case-list';
+  wrap.appendChild(list);
+
+  const moreBtn = document.createElement('button');
+  moreBtn.type = 'button';
+  moreBtn.className = 'btn btn-ghost case-more';
+  wrap.appendChild(moreBtn);
+
+  let direction = 'down';
+  let expanded = false;
+
+  function draw() {
+    const rows = group[direction] || [];
+    headline.textContent = CASE_HEADLINE[type][direction];
+    const shown = expanded ? rows : rows.slice(0, ROWS_COLLAPSED);
+    list.innerHTML = '';
+    for (const c of shown) list.appendChild(renderCaseRow(c));
+    if (rows.length > ROWS_COLLAPSED) {
+      moreBtn.hidden = false;
+      moreBtn.textContent = expanded ? 'Show fewer' : `Show ${rows.length - ROWS_COLLAPSED} more`;
+    } else {
+      moreBtn.hidden = true;
+    }
+  }
+
+  dropsBtn.addEventListener('click', () => {
+    direction = 'down'; expanded = false;
+    dropsBtn.classList.add('active'); dropsBtn.setAttribute('aria-selected', 'true');
+    risesBtn.classList.remove('active'); risesBtn.setAttribute('aria-selected', 'false');
+    draw();
+  });
+  risesBtn.addEventListener('click', () => {
+    direction = 'up'; expanded = false;
+    risesBtn.classList.add('active'); risesBtn.setAttribute('aria-selected', 'true');
+    dropsBtn.classList.remove('active'); dropsBtn.setAttribute('aria-selected', 'false');
+    draw();
+  });
+  moreBtn.addEventListener('click', () => { expanded = !expanded; draw(); });
+
+  draw();
+  return wrap;
+}
+
+function renderCaseRow(c) {
+  const row = document.createElement('div');
+  row.className = 'case-row';
+
+  const info = document.createElement('div');
+  info.className = 'case-info';
+  info.innerHTML = `
+    <span class="case-model">${c.model || c.product_id}</span>
+    <span class="case-title">${shortTitle(c.title)}</span>
+    <span class="case-month">${monthShort(c.month)}</span>
+    ${c.near_zero_after ? '<span class="case-flag">possible discontinuation</span>' : ''}
+  `;
+  row.appendChild(info);
+
+  const change = document.createElement('div');
+  change.className = 'case-change';
+  const val = document.createElement('span');
+  val.className = 'mono case-change-value';
+  val.textContent = pctFmt(c.effect_pct);
+  const range = document.createElement('span');
+  range.className = 'mono case-change-range';
+  range.textContent = rangeFmt(c.lo_pct, c.hi_pct);
+  change.appendChild(val);
+  change.appendChild(range);
+  row.appendChild(change);
+
+  const link = document.createElement('a');
+  link.className = 'event-link';
+  link.href = `#/event/${c.product_id}/${c.event_id}`;
+  link.textContent = 'Open the evidence';
+  row.appendChild(link);
+
+  return row;
 }

@@ -347,5 +347,27 @@
    ],
    "notes": "Found in the first real run: the model called the +21.9% change vs comparison a decline. It must quote the plain_summary and not claim an effect."
   }
+ },
+ {
+  "id": "find-cannibalisation-cases",
+  "messages": [
+   {
+    "role": "user",
+    "content": "Find me cases of cannibalisation"
+   }
+  ],
+  "view": null,
+  "expect": {
+   "must_call": [
+    "find_cases"
+   ],
+   "must_set_view": false,
+   "must_not_contain": [
+    "proves",
+    "proven that",
+    "caused by the launch"
+   ],
+   "notes": "Must use find_cases (sibling_launch, down) and present cases as worth inspecting, not proven."
+  }
  }
 ]

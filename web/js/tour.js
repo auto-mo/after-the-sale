@@ -1,5 +1,5 @@
-import { view, isTourDone, markTourDone } from './state.js?v=202609232309';
-import { navigate } from './router.js?v=202609232309';
+import { view, markTourDone } from './state.js?v=202609232353';
+import { navigate } from './router.js?v=202609232353';
 
 const STEPS = [
   {
@@ -10,33 +10,22 @@ const STEPS = [
   {
     selector: '.controls-row',
     title: 'Choose the window and what to show',
-    text: 'Show new units, refurbished, or both. Pick the date range, and switch between review volume and average rating.',
+    text: 'Show new units, refurbished, or both, pick the date range, and switch between review volume and average rating.',
   },
   {
     selector: '.chart-card',
     title: 'Read the timeline',
-    text: 'Bars show reviews per month. Dashed orange lines mark events: a sibling launch, refurbished units appearing, or a low-rating run. The hatched area at the right is data collected after March 2023, and is incomplete.',
+    text: 'Bars show reviews per month, with dashed orange lines marking events. The hatched area is data collected after March 2023, and is incomplete.',
   },
   {
     selector: '.product-rail',
     title: 'What moved this product',
-    text: 'Every event found on this product is listed here, with a verdict tag: Moved, No clear change, or Not enough data. The number beside it is the change compared with similar products that had no such event.',
-    sub: 'Open the evidence to see the chart and the comparison group behind a verdict.',
-  },
-  {
-    selector: '.event-link',
-    title: 'See the evidence',
-    text: 'This link opens the full comparison behind a verdict: the chart, the comparison band, and the numbers the call rests on.',
+    text: 'Every event found here carries a verdict and a change versus comparison. Open the evidence on any row to see the full comparison behind it.',
   },
   {
     selector: '#ask-btn',
     title: 'Ask the assistant',
-    text: 'It can answer questions the page cannot, such as what reviewers said, rank products, and set the view for you. Suggested prompts are one click.',
-  },
-  {
-    selector: 'a[data-route="/method"]',
-    title: 'Method and limits',
-    text: 'Read how the data is cleaned, how listings are matched into products, and exactly how a verdict is reached.',
+    text: 'It can rank products, explain a verdict, and find cases such as possible cannibalisation. Suggested prompts are one click.',
   },
 ];
 
@@ -175,11 +164,4 @@ export async function startTour() {
   }
   await waitFrame();
   renderStep();
-}
-
-export function maybeAutoStart() {
-  // "?notour" in the URL skips the first-visit tour (deep links, embeds, screenshots).
-  if (isTourDone() || new URLSearchParams(location.search).has('notour')) return;
-  // Give the app a moment to finish its first render before dimming the page.
-  setTimeout(() => startTour(), 400);
 }

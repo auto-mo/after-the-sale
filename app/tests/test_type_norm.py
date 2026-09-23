@@ -41,3 +41,18 @@ def test_schemas_use_only_strict_supported_keywords():
 def test_house_style_removes_em_dashes():
     from llm import _house_style
     assert "—" not in _house_style("review counts — ratings—and text")
+
+
+def test_find_cases_cannibalisation(toolbox):
+    r = dispatch(toolbox, "find_cases", {"event_type": "sibling_launch", "direction": "down", "limit": 3})
+    assert r["count"] == 3
+    vals = [c["change_vs_comparison_pct"] for c in r["cases"]]
+    assert vals == sorted(vals) and vals[0] < 0
+    assert all(c["plain_summary"] for c in r["cases"]) and "never as a proven effect" in r["how_to_read"]
+
+
+def test_find_cases_filters_and_validation(toolbox):
+    r = dispatch(toolbox, "find_cases", {"event_type": "refurbished", "direction": "up", "type": "stick vacuums"})
+    assert all(c["product_type"] == "vacuum-stick" for c in r["cases"])
+    with pytest.raises(ToolError):
+        dispatch(toolbox, "find_cases", {"event_type": "price_change"})

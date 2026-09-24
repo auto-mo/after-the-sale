@@ -320,13 +320,14 @@ class ToolBox:
                 top = self._shares(y, problems)[:1]
                 d["top_complaint"] = top[0] if top else None
             out["by_year"].append(d)
-        # The largest one-year rise in low-star share (10+ points, 100+ reviews both years), said plainly.
+        # The most recent one-year rise in low-star share of 10+ points (100+ reviews both years), said plainly.
         prev = None
         best = None
         for y in years:
-            if prev and y["year"] == prev["year"] + 1 and y["reviews"] >= 100 and prev["reviews"] >= 100:
+            # complete years only: 2023 holds January to March
+            if prev and y["year"] == prev["year"] + 1 and y["year"] <= 2022 and y["reviews"] >= 100 and prev["reviews"] >= 100:
                 jump = y["low_star_share"] - prev["low_star_share"]
-                if jump >= 0.10 and (best is None or jump > best[0]):
+                if jump >= 0.10:  # keep the most recent qualifying rise; recent changes matter most
                     best = (jump, prev, y)
             prev = y
         if best:
@@ -349,14 +350,30 @@ class ToolBox:
             out["refurbished_units"] = {
                 "reviews": int(rf["reviews"]), "avg_rating": round(rf["avg_rating"], 2),
                 "low_star_share": round(rf["low_star_share"], 4), "low_star_reviews": int(rf["low_star_reviews"]),
-                "arrival_complaints_refurbished": {k: round(rf[k] or 0, 4) for k in arr},
-                "arrival_complaints_new": {k: round(new[k] or 0, 4) for k in arr}}
+            }
+            if rf["low_star_reviews"] >= 30:
+                out["refurbished_units"]["arrival_complaints_refurbished"] = {k: round(rf[k] or 0, 4) for k in arr}
+                out["refurbished_units"]["arrival_complaints_new"] = {k: round(new[k] or 0, 4) for k in arr}
+            else:
+                out["refurbished_units"]["note"] = ("Fewer than 30 low-star refurbished reviews, too few to compare "
+                                                    "complaint shares with new units.")
             cells = self._query("SELECT yr, r_ref, n_ref, r_new, n_new, gap FROM pq_refurb_cells WHERE unit_id = ? ORDER BY yr",
                                 [product_id])
             if cells:
                 out["refurbished_units"]["same_year_comparison"] = [
                     {"year": c["yr"], "refurbished_rating": round(c["r_ref"], 2), "new_rating": round(c["r_new"], 2),
                      "gap": round(c["gap"], 2)} for c in cells]
+        # One deterministic paragraph for the model to quote, so numbers are never re-derived in prose.
+        tops = out["new_units"]["top_complaints"][:2]
+        summary = (f"Of {out['new_units']['reviews']:,} new-unit reviews, {out['new_units']['low_star_share']:.0%} are 1 or 2 "
+                   f"stars. Among those, the most common complaints are "
+                   + " and ".join(f"{t['label'].lower()} ({t['share_of_low_star']:.0%})" for t in tops) + ".")
+        if out.get("notable_change"):
+            summary += " " + out["notable_change"]
+        if out.get("rating_over_life"):
+            r = out["rating_over_life"]
+            summary += f" Its average rating was {r['year_1_rating']:.2f} in its first year and {r['years_3_to_4_rating']:.2f} in years 3 to 4."
+        out["plain_summary"] = summary
         out["how_to_read"] = ("Shares are shares of 1 and 2-star reviews that mention the complaint (keyword rules), "
                               "never failure rates. Peer brands are Bissell, Dyson, iRobot, Keurig and Instant Pot units of "
                               "the same product type.")

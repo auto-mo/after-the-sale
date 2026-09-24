@@ -1,7 +1,7 @@
-import { loadPortfolio, loadProducts } from '../data.js?v=202609240159';
-import { intFmt, decFmt, humanizeType } from '../format.js?v=202609240159';
-import { setView } from '../state.js?v=202609240159';
-import { navigate } from '../router.js?v=202609240159';
+import { loadPortfolio, loadProducts } from '../data.js?v=202609241634';
+import { intFmt, decFmt, humanizeType } from '../format.js?v=202609241634';
+import { setView } from '../state.js?v=202609241634';
+import { navigate } from '../router.js?v=202609241634';
 
 function themeLabelMap(portfolio) {
   return new Map(portfolio.themes.map((t) => [t.key, t.label]));
@@ -52,7 +52,7 @@ function buildKeyFindings(portfolio) {
     const ratioText = ratio && ratio >= 1.3 ? `, about ${decFmt(ratio, 1)}x the peer rate` : '';
     out.push({
       anchor: 'complaints',
-      html: `For the ${humanizeType(biggest.type)} type, <strong>${labels.get(biggest.theme) || biggest.theme}</strong> is SharkNinja&rsquo;s signature complaint at ${decFmt(biggest.sn * 100, 1)}% of low-star reviews versus ${decFmt(biggest.peers * 100, 1)}% for peers${ratioText}.`,
+      html: `For ${humanizeType(biggest.type)}s, SharkNinja&rsquo;s signature complaint is <strong>${(labels.get(biggest.theme) || biggest.theme).toLowerCase()}</strong>: ${decFmt(biggest.sn * 100, 1)}% of low-star reviews versus ${decFmt(biggest.peers * 100, 1)}% for peers${ratioText}.`,
     });
   }
 

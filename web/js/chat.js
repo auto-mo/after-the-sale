@@ -1,7 +1,7 @@
-import { findProduct } from './data.js?v=202609240159';
-import { getView, setView, getPreviousView } from './state.js?v=202609240159';
-import { navigate } from './router.js?v=202609240159';
-import { monthShort } from './format.js?v=202609240159';
+import { findProduct } from './data.js?v=202609241634';
+import { getView, setView, getPreviousView } from './state.js?v=202609241634';
+import { navigate } from './router.js?v=202609241634';
+import { monthShort } from './format.js?v=202609241634';
 
 const MAX_LEN = 1000;
 let messages = [];

@@ -23,8 +23,8 @@ All figures are from new-unit reviews through March 2023.
 
 - **Ratings fall as products age, for every brand.** Comparing year 1 with years 3 to 4 of the same product,
   58 of 60 SharkNinja products fell (average -0.46 stars) and 80 of 85 peer-brand products fell (-0.38).
-- **The rise in 1 and 2-star reviews is shared.** From 2015 to 2022 the share went from 12% to 24% for SharkNinja and
-  from 12% to 27% for the peer brands (equal weight per product type).
+- **The rise in 1 and 2-star reviews is shared.** From 2015 to 2022 the share went from 12% to 25% for SharkNinja and
+  from 12% to 26% for the peer brands (equal weight per product type, using the six types both sets sold every year).
 - **What differs is what owners complain about.** Share of 1 and 2-star reviews, SharkNinja vs peers: coffee maker
   leaks 16% vs 5%; robot vacuum app and connection problems 14% vs 6%; stick vacuums heavy or awkward 8% vs 2%;
   multicooker coating peeling 4% vs 0.5%.
@@ -37,7 +37,7 @@ All figures are from new-unit reviews through March 2023.
   year, such as the S3501 steam mop (21% in 2021 to 41% in 2022, with "no steam" rising).
 
 An earlier version asked what moved each product's review volume (sibling launches, refurbished units appearing,
-low-rating months). Of 2,822 events, 808 were testable and none survived a false-discovery check, so those tests are
+low-rating months). Of 2,806 events, 806 were testable and none survived a false-discovery check, so those tests are
 kept in the code and described on the Method page, and the tool makes no demand claims.
 
 ## How it works
@@ -46,7 +46,7 @@ kept in the code and described on the Method page, and the tool makes no demand 
 |---|---|---|
 | Data | `DATA_SOURCES.md`, `scripts/extract_comparators.py` | Amazon Reviews 2023 (McAuley Lab, UCSD), streamed and filtered to SharkNinja and five peer brands |
 | Clean | `pipeline/rules.py`, `pipeline/clean.py`, `pipeline/comparators.py` | Deterministic rules: model numbers, accessories vs units, product type, other brands sharing a store name; peer listings of kinds SharkNinja does not sell are left out |
-| Match | `pipeline/match.py`, `pipeline/resolve_sn.py` | 1,967 SharkNinja listings joined into 1,138 products (colours, retailer codes, refurbished listings, bundles) |
+| Match | `pipeline/match.py`, `pipeline/resolve_sn.py` | 1,967 SharkNinja listings joined into 1,137 products (colours, retailer codes, refurbished listings, bundles) |
 | Measure | `eval/` | Matcher: Walmart-Amazon F1 0.852; SharkNinja blind-labelled pairs precision 0.948, recall 0.917 after adjudication. Complaint themes: blind-labelled precision 0.80 to 1.00 per theme, 0.89 overall |
 | Timeline | `pipeline/panel.py` | Monthly reviews and rating per product, new and refurbished, complete through March 2023 |
 | Themes | `pipeline/themes.py` | 24 keyword complaint themes and stated time-to-failure bands |

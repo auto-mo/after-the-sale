@@ -1,12 +1,12 @@
-import { loadProductDetail, loadPortfolio } from '../data.js?v=202609240159';
+import { loadProductDetail, loadPortfolio } from '../data.js?v=202609241634';
 import {
   renderVolumeChart, renderRatingStrip, renderRatingMainChart, renderVolumeStrip, monthsInRange,
   renderCategoryLineChart, renderGroupedBarChart, cssVar,
-} from '../charts.js?v=202609240159';
+} from '../charts.js?v=202609241634';
 import {
   intFmt, decFmt, monthShort, monthLong, dateShort, monthIndex, humanizeLaunchSource, humanizeType, EMPTY,
-} from '../format.js?v=202609240159';
-import { view, setView, onViewChanged } from '../state.js?v=202609240159';
+} from '../format.js?v=202609241634';
+import { view, setView, onViewChanged } from '../state.js?v=202609241634';
 
 const BAND_ORDER = ['0 to 6 months', '7 to 12 months', 'Year 2', 'Years 3 to 4', 'Year 5+'];
 const ARRIVAL_KEYS = ['missing_parts', 'arrived_damaged_used', 'not_as_described', 'dead_on_arrival'];
@@ -51,7 +51,7 @@ function ratingMonths(months) {
   }));
 }
 
-/** Headline for the rating view: the largest one-year rise in the 1 and 2-star share inside the window
+/** Headline for the rating view: the most recent one-year rise in the 1 and 2-star share inside the window
  * (10+ points, 100+ reviews in both years), otherwise the window's average rating. */
 function computeRatingTakeaway(detail, from, to) {
   const y0 = Number(from.slice(0, 4));
@@ -61,9 +61,10 @@ function computeRatingTakeaway(detail, from, to) {
   for (let i = 1; i < years.length; i += 1) {
     const a = years[i - 1];
     const b = years[i];
-    if (b.yr !== a.yr + 1 || a.n < 100 || b.n < 100) continue;
+    // Complete years only: the data ends in March 2023, so 2023 is a partial year.
+    if (b.yr !== a.yr + 1 || b.yr > 2022 || a.n < 100 || b.n < 100) continue;
     const jump = b.low_share - a.low_share;
-    if (jump >= 0.10 && (!best || jump > best.jump)) best = { a, b, jump };
+    if (jump >= 0.10) best = { a, b, jump }; // the most recent qualifying rise wins; recent changes matter most
   }
   if (best) {
     return `The share of 1 and 2-star reviews rose from ${decFmt(best.a.low_share * 100, 0)}% in ${best.a.yr} to ${decFmt(best.b.low_share * 100, 0)}% in ${best.b.yr}`;
@@ -245,7 +246,7 @@ function renderYearTable(rail, detail, labels) {
   sorted.forEach((y, i) => {
     const prev = sorted[i - 1];
     // Same rule as the headline: consecutive years, 100+ reviews in both, a rise of 10 points or more.
-    const rose = prev && prev.yr === y.yr - 1 && prev.n >= 100 && y.n >= 100 && prev.low_share !== null && y.low_share !== null && (y.low_share - prev.low_share) >= 0.10;
+    const rose = prev && prev.yr === y.yr - 1 && y.yr <= 2022 && prev.n >= 100 && y.n >= 100 && prev.low_share !== null && y.low_share !== null && (y.low_share - prev.low_share) >= 0.10;
     const tr = document.createElement('tr');
     if (rose) tr.className = 'year-rise';
     const yearLabel = y.yr === 2023 ? '2023 (Jan-Mar)' : String(y.yr);

@@ -283,7 +283,7 @@ name "After the Sale", URL `/after-the-sale/`.
   with its caveat. Portfolio: quality columns, no growth headline. Method: event tests become "tested, not
   detectable". New copy, carousel, tour.
 - **R5 Assistant. BUILT (2026-09-23).** Tools rewritten to the new tables, new real-model cases.
-- **R6 Deploy and rename.** New path on Jarvis, old URL redirects, Work entry, apps card, GitHub repo rename
+- **R6 Deploy and rename. DONE (2026-09-23).** New path on Jarvis, old URL redirects, Work entry, apps card, GitHub repo rename
   (owner approves each outbound step).
 
 ### Not in scope

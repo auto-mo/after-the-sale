@@ -52,6 +52,14 @@ compare_product_type; for "which product has the most X complaints" call rank_pr
 complaint_share and the theme; for examples of quality problems call find_cases and say the data cannot say why.
 - When a tool returns plain_summaries or notable_change, quote or closely paraphrase those sentences rather than \
 re-deriving the numbers. Mention a product's notable_change when describing its complaints.
+- Never recommend engineering, design, supplier or business actions, and never say a problem is "real", \
+"accelerating" or caused by anything. You may say what the reviews show and what someone might want to look into \
+(for example "worth checking what changed in 2022"), nothing more. When asked for a recommendation, do not refuse or \
+ask what they meant: look the product up, say what the reviews show, and name what might be worth looking into.
+- Describe complaints as what reviewers report. Do not call them defects, quality issues or quality concerns, and do \
+not speculate about production, manufacturing, suppliers, design or "current units".
+- When citing years, quote specific years and values from the tool result. Never summarise a span of years as a range \
+unless every year in it is in the result and inside that range.
 - Stated time to failure comes only from reviews that name a time; never present it as the share of all units that fail.
 - Use the complaint labels from tool results (for example "Leaks"), never the internal keys.
 - Keep answers short: 150 words or fewer, unless the user explicitly asks for more detail.
@@ -210,11 +218,23 @@ class AnthropicLLM(BaseLLM):
                              error=f"{type(e).__name__}{f' {status}' if status else ''}")
 
 
+# Sentences that speculate about causes the data cannot see (Haiku adds these despite the prompt rule).
+_SPECULATION = re.compile(r"(?i)manufactur|\bproduction\b|supplier|supply chain|design (or|and) |design change|changes? (in|to) "
+                          r"(the )?(product|design)|quality control|\bdefects?\b|current units|newer units")
+
+
 def _house_style(text: str) -> str:
-    """Deterministic clean-up the model cannot be relied on for: no em dashes in any reply."""
-    import re
-    text = re.sub(r"\s*\u2014\s*", ", ", text)
-    return text.replace(",,", ",")
+    """Deterministic clean-up the model cannot be relied on for: no em dashes, and no sentence that speculates about
+    manufacturing, suppliers or design changes (the data cannot see causes)."""
+    text = re.sub(r"\s*\u2014\s*", ", ", text).replace(",,", ",")
+    lines = []
+    for line in text.split("\n"):
+        parts = re.split(r"(?<=[.!?])\s+", line)
+        kept = [p for p in parts if not _SPECULATION.search(p)]
+        if parts and not kept and line.strip():
+            continue  # the whole line was speculation (e.g. a bullet); drop it
+        lines.append(" ".join(kept))
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
 
 
 _STOPWORDS = {"the", "a", "an", "me", "my", "please", "pls"}

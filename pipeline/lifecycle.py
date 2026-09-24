@@ -117,12 +117,17 @@ SELECT brand_set, yr, product_type, count(*) AS n, avg(low) AS low_share, avg(ra
 FROM rv WHERE channel = 'new' AND product_type IN ({", ".join(f"'{t}'" for t in types)}) AND yr BETWEEN 2012 AND 2023
 GROUP BY 1, 2, 3
 """).df()
-# Type-mix-neutral series: each year reweighted to equal weight per type present in both sets
-tw = (trend[trend.n >= 100].groupby(["brand_set", "yr"])
+# Type-mix-neutral series: equal weight per type, and only types with 100+ reviews in both sets in every year from
+# 2015 to 2022, so a type entering partway (air fryers) cannot move the average by itself.
+_ok = trend[(trend.n >= 100) & trend.yr.between(2015, 2022)].groupby("product_type").apply(
+    lambda g: g.groupby("brand_set").yr.nunique().reindex(["SharkNinja", "Peers"]).fillna(0).min() == 8)
+trend_types = sorted(_ok[_ok].index)
+tw = (trend[(trend.n >= 100) & trend.product_type.isin(trend_types)].groupby(["brand_set", "yr"])
       .agg(low_share=("low_share", "mean"), rating=("rating", "mean"), types=("product_type", "count")).reset_index())
 trend.to_parquet(C / "pq_trend_type.parquet", index=False)
 tw.to_parquet(C / "pq_trend.parquet", index=False)
-log("\n## 2. Low-star share by year, new units, types in both sets (equal weight per type, cells >= 100 reviews)")
+log("\n## 2. Low-star share by year, new units (equal weight per type; types present in both sets every year 2015 to 2022: "
+    + ", ".join(trend_types) + ")")
 piv = tw.pivot(index="yr", columns="brand_set", values="low_share")
 for y, r in piv.iterrows():
     log(f"- {y}: " + "; ".join(f"{c} {v:.1%}" for c, v in r.items() if pd.notna(v)))

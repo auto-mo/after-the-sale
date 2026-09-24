@@ -56,3 +56,11 @@ def test_cost_breakdown_usd_formula():
     usd = c.usd(price_in_per_mtok=1.0, price_out_per_mtok=5.0)
     # 1.0 (input) + 5.0 (output) + 0.10 (cache read @ 10%) + 1.25 (cache write @ 125%)
     assert abs(usd - (1.0 + 5.0 + 0.10 + 1.25)) < 1e-9
+
+
+def test_house_style_drops_speculation_sentences():
+    from llm import _house_style
+    out = _house_style("No steam rose in 2022. The timing suggests a production change. Worth checking what changed.\n"
+                       "- Quality control or manufacturing changes around that time\n- Refurbished arrival problems")
+    assert "production" not in out and "manufacturing" not in out
+    assert "No steam rose in 2022." in out and "Worth checking what changed." in out and "Refurbished" in out

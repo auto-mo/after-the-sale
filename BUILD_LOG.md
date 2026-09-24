@@ -163,3 +163,18 @@ lookup about 1 run in 5 after a prompt example; accepted as a known limit); ngin
 the live config (idempotent).
 **Result:** pass (not deployed)
 **Issues:** chat clarification rule is probabilistic on Haiku.
+
+## [2026-09-23] Reframe R6 — Deploy and rename
+**Built:** uploaded `web/` to `~/apps-landing/after-the-sale/`, assistant code (no `.env`) and 15 parquet tables to
+`~/demand-evidence/`, and `deploy/after-the-sale.sh` (nginx /after-the-sale/api/ route, redirect of every
+/demand-evidence/ URL, assistant restart). GitHub repo renamed to auto-mo/after-the-sale (old URL 301s) and pushed
+(commit 3a2eb0d2a3, 99 files; data, `.env`, review-text samples and listing-title candidates excluded; scanned for
+keys, private paths and IPs). Apps landing card updated and deployed; Work entry rewritten with four new screenshots
+and staged in ~/mg-deploy.
+**Tested:** Jarvis capacity before upload (11 GB available, disk 48%, load 0.04); tool smoke test on Jarvis against
+the uploaded tables; GitHub redirect and tree contents.
+**Result:** pass. Live checks after the owner's sudo steps: /after-the-sale/ 200 (stamp v=202609240159), API health ok
+(mode anthropic), every /demand-evidence/ URL 301s to /after-the-sale/ (ends on https in 2 hops via Cloudflare),
+portfolio.json 200, Work page and new screenshots 200, one live chat question answered with the right tools and numbers.
+**Issues:** the owner first ran the switch command before the script was uploaded; it did nothing (file missing) and
+nothing changed on the server.

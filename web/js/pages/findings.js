@@ -1,6 +1,6 @@
-import { loadPortfolio } from '../data.js?v=202609240159';
-import { intFmt, decFmt, humanizeType } from '../format.js?v=202609240159';
-import { renderCategoryLineChart, renderGroupedBarChart, cssVar } from '../charts.js?v=202609240159';
+import { loadPortfolio } from '../data.js?v=202609241634';
+import { intFmt, decFmt, humanizeType } from '../format.js?v=202609241634';
+import { renderCategoryLineChart, renderGroupedBarChart, cssVar } from '../charts.js?v=202609241634';
 
 const BAND_ORDER = ['0 to 6 months', '7 to 12 months', 'Year 2', 'Years 3 to 4', 'Year 5+'];
 const FAIL_BAND_ORDER = ['Under a month', '1 to 3 months', '4 to 11 months', 'About a year', '2 years or more'];
@@ -40,7 +40,7 @@ function renderDrift(portfolio) {
   const s = section('drift', 'Ratings fall as products age, for every brand');
   const meta = document.createElement('p');
   meta.className = 'findings-meta';
-  meta.textContent = `SharkNinja: ${f.sharkninja.fell} of ${f.sharkninja.products} products rated lower in years 3 to 4 than in year 1 (average change ${decFmt(f.sharkninja.mean, 2)} stars). Peers: ${f.peers.fell} of ${f.peers.products} (average change ${decFmt(f.peers.mean, 2)} stars). The share of 1 and 2-star reviews went from ${decFmt(f.sharkninja.low_year1 * 100, 0)}% to ${decFmt(f.sharkninja.low_years3to4 * 100, 0)}% for SharkNinja and from ${decFmt(f.peers.low_year1 * 100, 0)}% to ${decFmt(f.peers.low_years3to4 * 100, 0)}% for peers.`;
+  meta.textContent = `Same product, early versus later in its life (products with at least 100 reviews in both periods). SharkNinja: ${f.sharkninja.fell} of ${f.sharkninja.products} products rated lower in years 3 to 4 than in year 1 (average change ${decFmt(f.sharkninja.mean, 2)} stars). Peers: ${f.peers.fell} of ${f.peers.products} (average change ${decFmt(f.peers.mean, 2)} stars). For those same products, the share of 1 and 2-star reviews went from ${decFmt(f.sharkninja.low_year1 * 100, 0)}% in year 1 to ${decFmt(f.sharkninja.low_years3to4 * 100, 0)}% in years 3 to 4 for SharkNinja, and from ${decFmt(f.peers.low_year1 * 100, 0)}% to ${decFmt(f.peers.low_years3to4 * 100, 0)}% for peers. The chart averages every product with at least 30 reviews in each age band.`;
   s.appendChild(meta);
 
   const curve = portfolio.findings.curve;
@@ -75,7 +75,7 @@ function renderTrend(portfolio) {
   const first = years[0];
   const last = years[years.length - 1];
   // 2015 to 2022: first year with steady volume in every compared type, and the last full year.
-  meta.textContent = `From 2015 to 2022, SharkNinja's 1 and 2-star share went from ${decFmt((sn.get(2015) || 0) * 100, 0)}% to ${decFmt((sn.get(2022) || 0) * 100, 0)}% and the peer brands' from ${decFmt((pe.get(2015) || 0) * 100, 0)}% to ${decFmt((pe.get(2022) || 0) * 100, 0)}%. ${last} covers January to March only.`;
+  meta.textContent = `By calendar year, across all products on sale: from 2015 to 2022, SharkNinja's 1 and 2-star share went from ${decFmt((sn.get(2015) || 0) * 100, 0)}% to ${decFmt((sn.get(2022) || 0) * 100, 0)}% and the peer brands' from ${decFmt((pe.get(2015) || 0) * 100, 0)}% to ${decFmt((pe.get(2022) || 0) * 100, 0)}%. ${last} covers January to March only.`;
   s.appendChild(meta);
   s.appendChild(renderCategoryLineChart({
     categories: years,

@@ -11,7 +11,7 @@ export const view = {
   from: null, // month string, filled in once the product loads
   to: null,
   channels: { new: true, renewed: true },
-  measure: 'volume', // 'volume' | 'rating'
+  measure: 'rating', // 'rating' | 'volume' -- rating is the default measure
 };
 
 let previousView = null;

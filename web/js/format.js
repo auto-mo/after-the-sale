@@ -64,6 +64,7 @@ const TYPE_LABEL = {
   'accessory/part': 'accessory or part',
   'floor-care consumable': 'floor-care consumable',
   unclassified: 'unclassified',
+  'iron/steamer': 'iron or steamer',
 };
 
 /** "vacuum-upright/canister" -> "upright/canister vacuum"; other types pass
@@ -71,7 +72,7 @@ const TYPE_LABEL = {
 export function humanizeType(type) {
   if (!type) return '';
   if (type.startsWith('vacuum-')) {
-    const rest = type.slice('vacuum-'.length).replace(/-/g, ' ');
+    const rest = type.slice('vacuum-'.length).replace(/-/g, ' ').replace('/', ' or ');
     return rest === 'other' ? 'vacuum' : `${rest} vacuum`;
   }
   return TYPE_LABEL[type] || type;

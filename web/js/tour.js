@@ -1,5 +1,5 @@
-import { view, markTourDone } from './state.js?v=202609232353';
-import { navigate } from './router.js?v=202609232353';
+import { view, markTourDone } from './state.js?v=202609240159';
+import { navigate } from './router.js?v=202609240159';
 
 const STEPS = [
   {
@@ -10,22 +10,22 @@ const STEPS = [
   {
     selector: '.controls-row',
     title: 'Choose the window and what to show',
-    text: 'Show new units, refurbished, or both, pick the date range, and switch between review volume and average rating.',
+    text: 'Show new units, refurbished, or both, pick the date range, and switch between average rating and review volume.',
   },
   {
     selector: '.chart-card',
     title: 'Read the timeline',
-    text: 'Bars show reviews per month, with dashed orange lines marking events. The hatched area is data collected after March 2023, and is incomplete.',
+    text: 'Rating is the default view. The hatched area is data collected after March 2023, and is incomplete.',
   },
   {
     selector: '.product-rail',
-    title: 'What moved this product',
-    text: 'Every event found here carries a verdict and a change versus comparison. Open the evidence on any row to see the full comparison behind it.',
+    title: 'What owners report',
+    text: 'Complaint mix, quotes, a year by year table and how ratings change over the product’s life, each compared with the SharkNinja and peer averages for this type.',
   },
   {
     selector: '#ask-btn',
     title: 'Ask the assistant',
-    text: 'It can rank products, explain a verdict, and find cases such as possible cannibalisation. Suggested prompts are one click.',
+    text: 'It can rank products by complaints, explain a product’s numbers, and find products whose complaints jumped in one year. Suggested prompts are one click.',
   },
 ];
 

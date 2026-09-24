@@ -4,10 +4,17 @@
 // to its card's width via CSS (width:100%, height:auto) so nothing ever
 // forces a horizontal scrollbar and text is never stretched out of shape.
 
-import { monthShort, monthLong, monthIndex, intFmt, decFmt } from './format.js?v=202609232353';
+import { monthShort, monthLong, monthIndex, intFmt, decFmt } from './format.js?v=202609240159';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const MINUS = '−';
+
+/** Read a color token's current value (light or dark theme) at draw time,
+ * so charts never hardcode a hex that would go wrong under `data-theme`. */
+export function cssVar(name) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || '#000';
+}
 
 function el(tag, attrs = {}, children = []) {
   const node = document.createElementNS(SVG_NS, tag);
@@ -180,8 +187,8 @@ export function renderVolumeChart({
   // gridlines + y labels
   for (let v = 0; v <= niceMax + 0.0001; v += step) {
     const y = yScale(v);
-    svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: y, y2: y, stroke: '#D5D9DE', 'stroke-width': 1 }));
-    svg.appendChild(el('text', { x: padL - 8, y: y + 4, 'text-anchor': 'end', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: '#58606A' })).textContent = intFmt(v);
+    svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: y, y2: y, stroke: cssVar('--hairline'), 'stroke-width': 1 }));
+    svg.appendChild(el('text', { x: padL - 8, y: y + 4, 'text-anchor': 'end', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: cssVar('--muted') })).textContent = intFmt(v);
   }
 
   const barW = Math.max(1, bw * 0.72);
@@ -194,12 +201,12 @@ export function renderVolumeChart({
       const hatchX = padL + firstIncomplete * bw;
       const defs = el('defs', {}, [
         el('pattern', { id: 'hatch', width: 6, height: 6, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' }, [
-          el('line', { x1: 0, y1: 0, x2: 0, y2: 6, stroke: '#C3C9D0', 'stroke-width': 2 }),
+          el('line', { x1: 0, y1: 0, x2: 0, y2: 6, stroke: cssVar('--hatch'), 'stroke-width': 2 }),
         ]),
       ]);
       svg.appendChild(defs);
       svg.appendChild(el('rect', { x: hatchX, y: padTop, width: padL + plotW - hatchX, height: plotH, fill: 'url(#hatch)' }));
-      svg.appendChild(el('text', { x: padL + plotW - 4, y: padTop + 14, 'text-anchor': 'end', 'font-family': 'IBM Plex Sans', 'font-size': 11, fill: '#58606A' })).textContent = 'incomplete data';
+      svg.appendChild(el('text', { x: padL + plotW - 4, y: padTop + 14, 'text-anchor': 'end', 'font-family': 'IBM Plex Sans', 'font-size': 11, fill: cssVar('--muted') })).textContent = 'incomplete data';
     }
   }
 
@@ -212,13 +219,13 @@ export function renderVolumeChart({
     if (channels.new) {
       const v = row.new || 0;
       const h = (v / niceMax) * plotH;
-      g.appendChild(el('rect', { x, y: yCursor - h, width: barW, height: Math.max(h, v > 0 ? 0.6 : 0), fill: '#3A4048' }));
+      g.appendChild(el('rect', { x, y: yCursor - h, width: barW, height: Math.max(h, v > 0 ? 0.6 : 0), fill: cssVar('--graphite') }));
       yCursor -= h;
     }
     if (channels.renewed) {
       const v = row.renewed || 0;
       const h = (v / niceMax) * plotH;
-      g.appendChild(el('rect', { x, y: yCursor - h, width: barW, height: Math.max(h, v > 0 ? 0.6 : 0), fill: '#8DBBF0' }));
+      g.appendChild(el('rect', { x, y: yCursor - h, width: barW, height: Math.max(h, v > 0 ? 0.6 : 0), fill: cssVar('--steel') }));
       yCursor -= h;
     }
     // full-height invisible hit target for hover/focus
@@ -232,7 +239,7 @@ export function renderVolumeChart({
   });
 
   // x axis with a collision-aware year interval
-  svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: padTop + plotH, y2: padTop + plotH, stroke: '#16191D', 'stroke-width': 1 }));
+  svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: padTop + plotH, y2: padTop + plotH, stroke: cssVar('--ink'), 'stroke-width': 1 }));
   const firstYear = Number(data[0].m.slice(0, 4));
   const lastYear = Number(data[n - 1].m.slice(0, 4));
   const yStep = yearTickStep(firstYear, lastYear, plotW);
@@ -245,8 +252,8 @@ export function renderVolumeChart({
     // skip a label that would collide with the previous one (e.g. a mid-year start followed by January)
     if ((mo === '01' || i === 0) && y !== lastYear_ && (y - firstYear) % yStep === 0 && (lastTickX === null || x - lastTickX >= 40)) {
       lastTickX = x;
-      svg.appendChild(el('line', { x1: x, x2: x, y1: padTop + plotH, y2: padTop + plotH + 5, stroke: '#16191D' }));
-      svg.appendChild(el('text', { x: x + 3, y: padTop + plotH + 18, 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: '#58606A' })).textContent = String(y);
+      svg.appendChild(el('line', { x1: x, x2: x, y1: padTop + plotH, y2: padTop + plotH + 5, stroke: cssVar('--ink') }));
+      svg.appendChild(el('text', { x: x + 3, y: padTop + plotH + 18, 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: cssVar('--muted') })).textContent = String(y);
       lastYear_ = y;
     }
   });
@@ -254,9 +261,9 @@ export function renderVolumeChart({
   // event markers: short labels, stacked rows, flipped left near the edge
   for (const p of placedLabels) {
     const labelY = padTop - 12 - p.row * 20;
-    svg.appendChild(el('line', { x1: p.x, x2: p.x, y1: labelY + 8, y2: padTop + plotH, stroke: '#E0661B', 'stroke-width': 1.5, 'stroke-dasharray': '3 3' }));
-    svg.appendChild(el('rect', { x: p.start, y: labelY - 9, width: p.labelW, height: 18, fill: '#fff', stroke: '#E0661B' }));
-    const t = el('text', { x: p.start + 6, y: labelY + 4, 'font-family': 'IBM Plex Sans', 'font-size': 11, fill: '#16191D' });
+    svg.appendChild(el('line', { x1: p.x, x2: p.x, y1: labelY + 8, y2: padTop + plotH, stroke: cssVar('--tag-orange'), 'stroke-width': 1.5, 'stroke-dasharray': '3 3' }));
+    svg.appendChild(el('rect', { x: p.start, y: labelY - 9, width: p.labelW, height: 18, fill: '#fff', stroke: cssVar('--tag-orange') }));
+    const t = el('text', { x: p.start + 6, y: labelY + 4, 'font-family': 'IBM Plex Sans', 'font-size': 11, fill: cssVar('--ink') });
     t.textContent = p.text;
     svg.appendChild(t);
   }
@@ -300,17 +307,17 @@ function drawTimelineFrame(svg, { data, n, padL, plotW, bw, events, completeThro
       const hatchX = padL + firstIncomplete * bw;
       const defs = el('defs', {}, [
         el('pattern', { id: 'hatch', width: 6, height: 6, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' }, [
-          el('line', { x1: 0, y1: 0, x2: 0, y2: 6, stroke: '#C3C9D0', 'stroke-width': 2 }),
+          el('line', { x1: 0, y1: 0, x2: 0, y2: 6, stroke: cssVar('--hatch'), 'stroke-width': 2 }),
         ]),
       ]);
       svg.appendChild(defs);
       svg.appendChild(el('rect', { x: hatchX, y: padTop, width: padL + plotW - hatchX, height: plotH, fill: 'url(#hatch)' }));
-      svg.appendChild(el('text', { x: padL + plotW - 4, y: padTop + 14, 'text-anchor': 'end', 'font-family': 'IBM Plex Sans', 'font-size': 11, fill: '#58606A' })).textContent = 'incomplete data';
+      svg.appendChild(el('text', { x: padL + plotW - 4, y: padTop + 14, 'text-anchor': 'end', 'font-family': 'IBM Plex Sans', 'font-size': 11, fill: cssVar('--muted') })).textContent = 'incomplete data';
     }
   }
 
   // x axis with a collision-aware year interval
-  svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: plotBottomY, y2: plotBottomY, stroke: '#16191D', 'stroke-width': 1 }));
+  svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: plotBottomY, y2: plotBottomY, stroke: cssVar('--ink'), 'stroke-width': 1 }));
   const firstYear = Number(data[0].m.slice(0, 4));
   const yStep = yearTickStep(firstYear, Number(data[n - 1].m.slice(0, 4)), plotW);
   let lastYear_ = null;
@@ -322,8 +329,8 @@ function drawTimelineFrame(svg, { data, n, padL, plotW, bw, events, completeThro
     // skip a label that would collide with the previous one (e.g. a mid-year start followed by January)
     if ((mo === '01' || i === 0) && y !== lastYear_ && (y - firstYear) % yStep === 0 && (lastTickX === null || x - lastTickX >= 40)) {
       lastTickX = x;
-      svg.appendChild(el('line', { x1: x, x2: x, y1: plotBottomY, y2: plotBottomY + 5, stroke: '#16191D' }));
-      svg.appendChild(el('text', { x: x + 3, y: plotBottomY + 18, 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: '#58606A' })).textContent = String(y);
+      svg.appendChild(el('line', { x1: x, x2: x, y1: plotBottomY, y2: plotBottomY + 5, stroke: cssVar('--ink') }));
+      svg.appendChild(el('text', { x: x + 3, y: plotBottomY + 18, 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: cssVar('--muted') })).textContent = String(y);
       lastYear_ = y;
     }
   });
@@ -331,9 +338,9 @@ function drawTimelineFrame(svg, { data, n, padL, plotW, bw, events, completeThro
   // event markers: short labels, stacked rows, flipped left near the edge
   for (const p of placedLabels) {
     const labelY = padTop - 12 + p.row * 20;
-    svg.appendChild(el('line', { x1: p.x, x2: p.x, y1: labelY + 8, y2: plotBottomY, stroke: '#E0661B', 'stroke-width': 1.5, 'stroke-dasharray': '3 3' }));
-    svg.appendChild(el('rect', { x: p.start, y: labelY - 9, width: p.labelW, height: 18, fill: '#fff', stroke: '#E0661B' }));
-    const t = el('text', { x: p.start + 6, y: labelY + 4, 'font-family': 'IBM Plex Sans', 'font-size': 11, fill: '#16191D' });
+    svg.appendChild(el('line', { x1: p.x, x2: p.x, y1: labelY + 8, y2: plotBottomY, stroke: cssVar('--tag-orange'), 'stroke-width': 1.5, 'stroke-dasharray': '3 3' }));
+    svg.appendChild(el('rect', { x: p.start, y: labelY - 9, width: p.labelW, height: 18, fill: '#fff', stroke: cssVar('--tag-orange') }));
+    const t = el('text', { x: p.start + 6, y: labelY + 4, 'font-family': 'IBM Plex Sans', 'font-size': 11, fill: cssVar('--ink') });
     t.textContent = p.text;
     svg.appendChild(t);
   }
@@ -371,10 +378,10 @@ export function renderVolumeStrip({ months, from, to, channels = { new: true, re
   const { niceMax } = niceStep(maxVal, 2);
 
   const svg = makeSvg(totalW, height, 'Reviews per month (volume context)');
-  svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: padTop, y2: padTop, stroke: '#D5D9DE' }));
-  svg.appendChild(el('text', { x: padL - 8, y: padTop + 4, 'text-anchor': 'end', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: '#58606A' })).textContent = intFmt(niceMax);
-  svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: padTop + plotH, y2: padTop + plotH, stroke: '#16191D' }));
-  svg.appendChild(el('text', { x: padL - 8, y: padTop + plotH + 4, 'text-anchor': 'end', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: '#58606A' })).textContent = '0';
+  svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: padTop, y2: padTop, stroke: cssVar('--hairline') }));
+  svg.appendChild(el('text', { x: padL - 8, y: padTop + 4, 'text-anchor': 'end', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: cssVar('--muted') })).textContent = intFmt(niceMax);
+  svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: padTop + plotH, y2: padTop + plotH, stroke: cssVar('--ink') }));
+  svg.appendChild(el('text', { x: padL - 8, y: padTop + plotH + 4, 'text-anchor': 'end', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: cssVar('--muted') })).textContent = '0';
 
   const barW = Math.max(1, bw * 0.72);
   const tip = buildTooltip(wrap);
@@ -385,13 +392,13 @@ export function renderVolumeStrip({ months, from, to, channels = { new: true, re
     if (channels.new) {
       const v = row.new || 0;
       const h = (v / niceMax) * plotH;
-      svg.appendChild(el('rect', { x, y: yCursor - h, width: barW, height: Math.max(h, v > 0 ? 0.5 : 0), fill: '#3A4048' }));
+      svg.appendChild(el('rect', { x, y: yCursor - h, width: barW, height: Math.max(h, v > 0 ? 0.5 : 0), fill: cssVar('--graphite') }));
       yCursor -= h;
     }
     if (channels.renewed) {
       const v = row.renewed || 0;
       const h = (v / niceMax) * plotH;
-      svg.appendChild(el('rect', { x, y: yCursor - h, width: barW, height: Math.max(h, v > 0 ? 0.5 : 0), fill: '#8DBBF0' }));
+      svg.appendChild(el('rect', { x, y: yCursor - h, width: barW, height: Math.max(h, v > 0 ? 0.5 : 0), fill: cssVar('--steel') }));
     }
     const hit = el('rect', { x: padL + i * bw, y: padTop, width: bw, height: plotH, fill: 'transparent', tabindex: '0', role: 'img', 'aria-label': `${monthLong(row.m)}: ${intFmt((row.new || 0) + (row.renewed || 0))} reviews` });
     svg.appendChild(hit);
@@ -454,8 +461,8 @@ export function renderRatingMainChart({
 
   for (let v = yMin; v <= yMax + 0.0001; v += yStep) {
     const y = yScale(v);
-    svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: y, y2: y, stroke: '#D5D9DE', 'stroke-width': 1 }));
-    svg.appendChild(el('text', { x: padL - 8, y: y + 4, 'text-anchor': 'end', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: '#58606A' })).textContent = decFmt(v, yStep < 1 ? 1 : 0);
+    svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: y, y2: y, stroke: cssVar('--hairline'), 'stroke-width': 1 }));
+    svg.appendChild(el('text', { x: padL - 8, y: y + 4, 'text-anchor': 'end', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: cssVar('--muted') })).textContent = decFmt(v, yStep < 1 ? 1 : 0);
   }
 
   drawTimelineFrame(svg, { data, n, padL, plotW, bw, events, completeThrough, padTop, plotH });
@@ -490,8 +497,8 @@ export function renderRatingMainChart({
       svg.appendChild(c);
     });
   }
-  if (channels.new) drawSeries('rating_new', '#3A4048');
-  if (channels.renewed) drawSeries('rating_renewed', '#8DBBF0');
+  if (channels.new) drawSeries('rating_new', cssVar('--graphite'));
+  if (channels.renewed) drawSeries('rating_renewed', cssVar('--steel'));
 
   wrap.appendChild(svg);
   return wrap;
@@ -520,8 +527,8 @@ export function renderRatingStrip({ months, from, to, series = 'rating_new', thr
   const yScale = (v) => padTop + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
   [4.0, 4.5, 5.0].forEach((v) => {
     const y = yScale(v);
-    svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: y, y2: y, stroke: '#D5D9DE' }));
-    svg.appendChild(el('text', { x: padL - 8, y: y + 4, 'text-anchor': 'end', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: '#58606A' })).textContent = decFmt(v, 2);
+    svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: y, y2: y, stroke: cssVar('--hairline') }));
+    svg.appendChild(el('text', { x: padL - 8, y: y + 4, 'text-anchor': 'end', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: cssVar('--muted') })).textContent = decFmt(v, 2);
   });
 
   const bw = plotW / n;
@@ -536,11 +543,11 @@ export function renderRatingStrip({ months, from, to, series = 'rating_new', thr
     if (v < threshold) lowPts.push({ x, y, v, m: row.m });
   });
   if (pts.length) {
-    svg.appendChild(el('polyline', { fill: 'none', stroke: '#16191D', 'stroke-width': 1.5, points: pts.join(' ') }));
+    svg.appendChild(el('polyline', { fill: 'none', stroke: cssVar('--ink'), 'stroke-width': 1.5, points: pts.join(' ') }));
   }
   const tip = buildTooltip(wrap);
   lowPts.forEach(({ x, y, v, m }) => {
-    const c = el('circle', { cx: x, cy: y, r: 4, fill: '#E0661B', tabindex: '0', role: 'img', 'aria-label': `${monthLong(m)}: rating ${decFmt(v, 2)}, below ${threshold}` });
+    const c = el('circle', { cx: x, cy: y, r: 4, fill: cssVar('--tag-orange'), tabindex: '0', role: 'img', 'aria-label': `${monthLong(m)}: rating ${decFmt(v, 2)}, below ${threshold}` });
     c.addEventListener('mouseenter', (e) => {
       const rect = wrap.getBoundingClientRect();
       showTooltip(tip, wrap, x, e.clientY - rect.top, [monthLong(m), `Rating: ${decFmt(v, 2)}`]);
@@ -584,17 +591,17 @@ export function renderEventStudyChart({ eventMonth, band, actualByOffset, window
 
   for (let v = 0; v <= niceMax + 0.0001; v += step) {
     const y = yScale(v);
-    svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: y, y2: y, stroke: '#D5D9DE', 'stroke-width': 1 }));
-    svg.appendChild(el('text', { x: padL - 8, y: y + 4, 'text-anchor': 'end', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: '#58606A' })).textContent = intFmt(v);
+    svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: y, y2: y, stroke: cssVar('--hairline'), 'stroke-width': 1 }));
+    svg.appendChild(el('text', { x: padL - 8, y: y + 4, 'text-anchor': 'end', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: cssVar('--muted') })).textContent = intFmt(v);
   }
 
   // comparison band (area between lo and hi) + dashed mid line
   if (band && band.length) {
     const areaTop = band.map((b) => `${(padL + (b.r + windowSize) * bw + bw / 2).toFixed(1)},${yScale(b.hi).toFixed(1)}`);
     const areaBottom = band.slice().reverse().map((b) => `${(padL + (b.r + windowSize) * bw + bw / 2).toFixed(1)},${yScale(b.lo).toFixed(1)}`);
-    svg.appendChild(el('polygon', { points: [...areaTop, ...areaBottom].join(' '), fill: '#8DBBF0', 'fill-opacity': 0.18, stroke: 'none' }));
+    svg.appendChild(el('polygon', { points: [...areaTop, ...areaBottom].join(' '), fill: cssVar('--steel'), 'fill-opacity': 0.18, stroke: 'none' }));
     const midPts = band.map((b) => `${(padL + (b.r + windowSize) * bw + bw / 2).toFixed(1)},${yScale(b.mid).toFixed(1)}`);
-    svg.appendChild(el('polyline', { points: midPts.join(' '), fill: 'none', stroke: '#58606A', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' }));
+    svg.appendChild(el('polyline', { points: midPts.join(' '), fill: 'none', stroke: cssVar('--muted'), 'stroke-width': 1.5, 'stroke-dasharray': '4 3' }));
   }
 
   // actual bars
@@ -606,7 +613,7 @@ export function renderEventStudyChart({ eventMonth, band, actualByOffset, window
     if (v !== undefined) {
       const h = (v / niceMax) * plotH;
       const signed = r > 0 ? `+${r}` : r < 0 ? `${MINUS}${Math.abs(r)}` : '0';
-      const bar = el('rect', { x, y: padTop + plotH - h, width: barW, height: Math.max(h, v > 0 ? 0.6 : 0), fill: '#3A4048', tabindex: '0', role: 'img', 'aria-label': `${signed} months: ${intFmt(v)} reviews` });
+      const bar = el('rect', { x, y: padTop + plotH - h, width: barW, height: Math.max(h, v > 0 ? 0.6 : 0), fill: cssVar('--graphite'), tabindex: '0', role: 'img', 'aria-label': `${signed} months: ${intFmt(v)} reviews` });
       const show = (clientY) => {
         const rect = wrap.getBoundingClientRect();
         const lines = [`${signed} months from event`, `New-unit reviews: ${intFmt(v)}`];
@@ -623,20 +630,20 @@ export function renderEventStudyChart({ eventMonth, band, actualByOffset, window
     }
   });
 
-  svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: padTop + plotH, y2: padTop + plotH, stroke: '#16191D', 'stroke-width': 1 }));
+  svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: padTop + plotH, y2: padTop + plotH, stroke: cssVar('--ink'), 'stroke-width': 1 }));
 
   // event line at offset 0
   const zeroIdx = offsets.indexOf(0);
   if (zeroIdx !== -1) {
     const x = padL + zeroIdx * bw + bw / 2;
-    svg.appendChild(el('line', { x1: x, x2: x, y1: padTop, y2: padTop + plotH, stroke: '#E0661B', 'stroke-width': 1.5, 'stroke-dasharray': '3 3' }));
+    svg.appendChild(el('line', { x1: x, x2: x, y1: padTop, y2: padTop + plotH, stroke: cssVar('--tag-orange'), 'stroke-width': 1.5, 'stroke-dasharray': '3 3' }));
     const label = eventLabel || monthLong(eventMonth);
     const labelW = Math.min(Math.max(90, label.length * 6.2 + 12), 260);
     let labelX = x;
     if (labelX + labelW > padL + plotW) labelX = x - labelW - 4;
     if (labelX < padL) labelX = padL;
-    svg.appendChild(el('rect', { x: labelX, y: padTop - 24, width: labelW, height: 18, fill: '#fff', stroke: '#E0661B' }));
-    const t = el('text', { x: labelX + 6, y: padTop - 11, 'font-family': 'IBM Plex Sans', 'font-size': 11, fill: '#16191D' });
+    svg.appendChild(el('rect', { x: labelX, y: padTop - 24, width: labelW, height: 18, fill: '#fff', stroke: cssVar('--tag-orange') }));
+    const t = el('text', { x: labelX + 6, y: padTop - 11, 'font-family': 'IBM Plex Sans', 'font-size': 11, fill: cssVar('--ink') });
     t.textContent = label.length > 40 ? `${label.slice(0, 39)}…` : label;
     svg.appendChild(t);
   }
@@ -647,8 +654,162 @@ export function renderEventStudyChart({ eventMonth, band, actualByOffset, window
     if (r % tickEvery === 0) {
       const x = padL + i * bw + bw / 2;
       const signed = r > 0 ? `+${r}` : r < 0 ? `${MINUS}${Math.abs(r)}` : '0';
-      svg.appendChild(el('text', { x, y: padTop + plotH + 18, 'text-anchor': 'middle', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: '#58606A' })).textContent = signed;
+      svg.appendChild(el('text', { x, y: padTop + plotH + 18, 'text-anchor': 'middle', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: cssVar('--muted') })).textContent = signed;
     }
+  });
+
+  wrap.appendChild(svg);
+  return wrap;
+}
+
+/**
+ * Generic categorical line chart: shared x axis of discrete categories
+ * (age bands, years), one or more series of {value, at index i} points.
+ * Used for the product life cycle chart and the two Findings line charts
+ * (ratings-by-age and 1-2 star share-by-year). A series can mark a run of
+ * trailing categories as "partial" (dashed, per house style for incomplete
+ * data) via `dashedFrom`.
+ */
+export function renderCategoryLineChart({
+  categories, series, yMin = 1, yMax = 5, yStep = 1, width = 640, height = 260,
+  yFmt = (v) => decFmt(v, 1), dashedFrom = null, ariaLabel = 'Chart',
+}) {
+  const wrap = document.createElement('div');
+  const n = categories.length;
+  const padL = 44;
+  const padR = 16;
+  const padTop = 14;
+  const padBottom = 28;
+  const plotW = width - padL - padR;
+  const plotH = height - padTop - padBottom;
+  const totalW = plotW + padL + padR;
+  const step = n > 1 ? plotW / (n - 1) : 0;
+  const xAt = (i) => (n > 1 ? padL + i * step : padL + plotW / 2);
+  const yScale = (v) => padTop + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
+
+  const svg = makeSvg(totalW, height, ariaLabel);
+
+  for (let v = yMin; v <= yMax + 0.0001; v += yStep) {
+    const y = yScale(v);
+    svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: y, y2: y, stroke: cssVar('--hairline'), 'stroke-width': 1 }));
+    svg.appendChild(el('text', { x: padL - 8, y: y + 4, 'text-anchor': 'end', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: cssVar('--muted') })).textContent = yFmt(v);
+  }
+  svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: padTop + plotH, y2: padTop + plotH, stroke: cssVar('--ink'), 'stroke-width': 1 }));
+  categories.forEach((c, i) => {
+    const x = xAt(i);
+    const dashed = dashedFrom !== null && i >= dashedFrom;
+    svg.appendChild(el('text', {
+      x, y: padTop + plotH + 18, 'text-anchor': n > 4 && String(c).length > 6 ? 'middle' : 'middle',
+      'font-family': 'IBM Plex Mono', 'font-size': 10.5, fill: dashed ? cssVar('--muted') : cssVar('--muted'),
+    })).textContent = String(c);
+  });
+
+  const tip = buildTooltip(wrap);
+  for (const s of series) {
+    const pts = [];
+    const dashedPts = [];
+    const dots = [];
+    s.values.forEach((v, i) => {
+      if (v === null || v === undefined) return;
+      const x = xAt(i);
+      const y = yScale(Math.max(yMin, Math.min(yMax, v)));
+      const isDashed = dashedFrom !== null && i >= dashedFrom;
+      (isDashed ? dashedPts : pts).push({ x, y });
+      dots.push({ x, y, v, i, isDashed });
+    });
+    // Bridge the solid/dashed segments so the line reads continuously.
+    if (dashedFrom !== null && pts.length && dashedPts.length) dashedPts.unshift(pts[pts.length - 1]);
+    if (pts.length > 1) svg.appendChild(el('polyline', { fill: 'none', stroke: s.color, 'stroke-width': 2, points: pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') }));
+    if (dashedPts.length > 1) svg.appendChild(el('polyline', { fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-dasharray': '5 4', points: dashedPts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') }));
+    dots.forEach(({ x, y, v, i }) => {
+      const c = el('circle', { cx: x, cy: y, r: 3.2, fill: s.color, tabindex: '0', role: 'img', 'aria-label': `${s.label}, ${categories[i]}: ${yFmt(v)}` });
+      const show = (clientY) => {
+        const rect = wrap.getBoundingClientRect();
+        showTooltip(tip, wrap, x, (clientY ?? rect.top + 20) - rect.top, [`${categories[i]}`, `${s.label}: ${yFmt(v)}`]);
+      };
+      c.addEventListener('mouseenter', (e) => show(e.clientY));
+      c.addEventListener('mousemove', (e) => show(e.clientY));
+      c.addEventListener('mouseleave', () => hideTooltip(tip));
+      c.addEventListener('focus', () => show(undefined));
+      c.addEventListener('blur', () => hideTooltip(tip));
+      svg.appendChild(c);
+    });
+  }
+
+  wrap.appendChild(svg);
+  return wrap;
+}
+
+/**
+ * Grouped vertical bar chart: one group per category, one square-cornered
+ * bar per series within the group. Used for the stated-time-to-failure
+ * bands and the refurbished/new arrival-complaint comparison.
+ */
+export function renderGroupedBarChart({ categories, series, width = 640, height = 280, valueFmt = (v) => intFmt(v), yFmt = (v) => intFmt(v), ariaLabel = 'Chart' }) {
+  const wrap = document.createElement('div');
+  const n = categories.length;
+  const padL = 44;
+  const padR = 16;
+  const padTop = 14;
+  const padBottom = 40;
+  const plotW = width - padL - padR;
+  const plotH = height - padTop - padBottom;
+  const totalW = plotW + padL + padR;
+  const groupW = plotW / n;
+  const barGap = 4;
+  const barW = Math.max(4, (groupW - barGap * (series.length + 1)) / series.length);
+
+  const maxVal = Math.max(1, ...series.flatMap((s) => s.values.map((v) => v || 0)));
+  const { step, niceMax } = niceStep(maxVal);
+  const yScale = (v) => padTop + plotH - (v / niceMax) * plotH;
+
+  const svg = makeSvg(totalW, height, ariaLabel);
+  for (let v = 0; v <= niceMax + 0.0001; v += step) {
+    const y = yScale(v);
+    svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: y, y2: y, stroke: cssVar('--hairline'), 'stroke-width': 1 }));
+    svg.appendChild(el('text', { x: padL - 8, y: y + 4, 'text-anchor': 'end', 'font-family': 'IBM Plex Mono', 'font-size': 11, fill: cssVar('--muted') })).textContent = yFmt(v);
+  }
+  svg.appendChild(el('line', { x1: padL, x2: padL + plotW, y1: padTop + plotH, y2: padTop + plotH, stroke: cssVar('--ink'), 'stroke-width': 1 }));
+
+  const tip = buildTooltip(wrap);
+  categories.forEach((cat, gi) => {
+    const groupX = padL + gi * groupW;
+    series.forEach((s, si) => {
+      const v = s.values[gi] || 0;
+      const h = (v / niceMax) * plotH;
+      const x = groupX + barGap + si * (barW + barGap);
+      const bar = el('rect', {
+        x, y: padTop + plotH - h, width: barW, height: Math.max(h, v > 0 ? 0.6 : 0), fill: s.color,
+        tabindex: '0', role: 'img', 'aria-label': `${cat}, ${s.label}: ${valueFmt(v)}`,
+      });
+      const show = (clientY) => {
+        const rect = wrap.getBoundingClientRect();
+        showTooltip(tip, wrap, x + barW / 2, (clientY ?? padTop + 20) - rect.top, [cat, `${s.label}: ${valueFmt(v)}`]);
+      };
+      bar.addEventListener('mouseenter', (e) => show(e.clientY));
+      bar.addEventListener('mousemove', (e) => show(e.clientY));
+      bar.addEventListener('mouseleave', () => hideTooltip(tip));
+      bar.addEventListener('focus', () => show(undefined));
+      bar.addEventListener('blur', () => hideTooltip(tip));
+      svg.appendChild(bar);
+    });
+    // Category labels wrap onto a second line at a word boundary instead of being cut off.
+    const label = String(cat);
+    const maxChars = Math.max(8, Math.floor(groupW / 6.5));
+    let lines = [label];
+    if (label.length > maxChars && label.includes(' ')) {
+      const words = label.split(' ');
+      let first = '';
+      while (words.length && (first + ' ' + words[0]).trim().length <= maxChars) first = `${first} ${words.shift()}`.trim();
+      lines = [first || words.shift(), words.join(' ')].filter(Boolean);
+    }
+    const text = svg.appendChild(el('text', {
+      x: groupX + groupW / 2, y: padTop + plotH + 16, 'text-anchor': 'middle',
+      'font-family': 'IBM Plex Sans', 'font-size': 11, fill: cssVar('--muted'),
+    }));
+    lines.forEach((ln, i) => {
+      text.appendChild(el('tspan', { x: groupX + groupW / 2, dy: i === 0 ? 0 : 13 })).textContent = ln;
+    });
   });
 
   wrap.appendChild(svg);

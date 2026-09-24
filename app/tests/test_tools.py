@@ -60,15 +60,27 @@ def test_get_product_timeline_bad_channel(toolbox):
         toolbox.get_product_timeline("SN-AF101", channel="sideways")
 
 
-def test_get_product_events(toolbox):
-    r = toolbox.get_product_events("SN-AF101")
-    assert r["product_id"] == "SN-AF101"
-    assert isinstance(r["events"], list)
+def test_get_product_complaints(toolbox):
+    r = toolbox.get_product_complaints("SN-S3501")
+    top = r["new_units"]["top_complaints"]
+    assert top and all(t["label"] and 0 <= t["share_of_low_star"] <= 1 for t in top)
+    assert [t["share_of_low_star"] for t in top] == sorted((t["share_of_low_star"] for t in top), reverse=True)
+    assert r["type_average_peer_brands"]["low_star_reviews"] > 0
+    assert any(y["year"] == 2022 for y in r["by_year"])
+    assert "never failure rates" in r["how_to_read"]
 
 
-def test_get_product_events_bad_product(toolbox):
+def test_get_product_complaints_bad_product(toolbox):
     with pytest.raises(ToolError):
-        toolbox.get_product_events("NOT-A-PRODUCT")
+        toolbox.get_product_complaints("NOT-A-PRODUCT")
+
+
+def test_compare_product_type(toolbox):
+    r = toolbox.compare_product_type("coffee makers")
+    assert r["product_type"] == "coffee maker" and "Keurig" in r["peer_brands"]
+    assert len(r["largest_gaps_vs_peers"]) == 3
+    b = toolbox.compare_product_type("blenders")  # peers have too few blender reviews: SharkNinja only
+    assert b["peer_brands"] is None and b["top_complaints_sharkninja"] and "SharkNinja" in b["stated_time_to_failure"]
 
 
 def test_rank_products_reviews_new(toolbox):
@@ -84,10 +96,17 @@ def test_rank_products_refurbished_share(toolbox):
         assert 0 <= x["value"] <= 1
 
 
-def test_rank_products_growth_has_definition(toolbox):
-    r = toolbox.rank_products(metric="growth", limit=3, min_reviews=100)
-    assert "definition" in r
-    assert "second half" in r["definition"]
+def test_rank_products_complaint_share(toolbox):
+    r = toolbox.rank_products(metric="complaint_share", type="robot vacuum", theme="app", limit=5)
+    assert r["results"] and all(x["product_type"] == "vacuum-robot" for x in r["results"])
+    assert "App and connection" in r["definition"]
+    with pytest.raises(ToolError):
+        toolbox.rank_products(metric="complaint_share", theme="teleportation")
+
+
+def test_rank_products_rating_change_sorted_by_fall(toolbox):
+    vals = [x["value"] for x in toolbox.rank_products(metric="rating_change", limit=5)["results"]]
+    assert vals == sorted(vals) and vals[0] < 0
 
 
 def test_rank_products_bad_metric(toolbox):
@@ -102,9 +121,11 @@ def test_rank_products_limit_clamped(toolbox):
 
 def test_get_findings(toolbox):
     r = toolbox.get_findings()
-    assert len(r["pooled_effects"]) == 3
-    assert r["false_discovery_result"]["survives_fdr"] == 0
-    assert len(r["limits"]) >= 2
+    life = r["ratings_over_product_life"]
+    assert set(life) == {"SharkNinja", "Peers"} and life["SharkNinja"]["mean_change"] < 0
+    assert r["refurbished_vs_new_same_product_same_year"]["cells"] > 0
+    assert "none survives" in r["not_detectable"]
+    assert len(r["limits"]) >= 3 and any("not failure" in x for x in r["limits"])
 
 
 def test_search_reviews_basic(toolbox):
@@ -143,7 +164,7 @@ def test_set_view_defaults(toolbox):
     assert v["product_id"] == "SN-AF101"
     assert v["to"] <= "2023-09"
     assert v["channels"]
-    assert v["measure"] == "volume"  # the page contract is volume | rating
+    assert v["measure"] == "rating"  # the page contract is volume | rating; rating is the default
 
 
 def test_set_view_clamps_future_to(toolbox):
@@ -172,3 +193,13 @@ def test_dispatch_maps_from_keyword(toolbox):
 def test_dispatch_unknown_tool(toolbox):
     with pytest.raises(ToolError):
         dispatch(toolbox, "delete_everything", {})
+
+
+def test_search_reviews_theme_and_helpful_sort(toolbox):
+    r = toolbox.search_reviews("SN-S3501", theme="no steam", max_rating=2, sort="helpful", limit=5)
+    ex = r["untrusted_reviews"]["excerpts"]
+    assert ex and all(e["rating"] <= 2 for e in ex)
+    votes = [e["helpful_votes"] for e in ex]
+    assert votes == sorted(votes, reverse=True)
+    with pytest.raises(ToolError):
+        toolbox.search_reviews("SN-S3501", theme="x; DROP TABLE sn_review")

@@ -101,3 +101,65 @@
 **Tested:** pytest 67 passed; real-model case find-cannibalisation-cases passed ($0.009); live checks: carousel opens first on a fresh visit, default HV322 loads, rating mode renders, legend totals, sort heading and order, cases rows with evidence links, year labels, stamp versions identical (43 refs).
 **Result:** pass (assistant's find_cases needs a service restart by the owner)
 **Issues:** event-rich products still have busy chart labels; case rows wrap at narrow widths when the discontinuation flag shows.
+
+**Update [2026-09-24]:** owner restarted the service; live `find_cases` verified through the public URL ("Find me cases of cannibalisation" → find_cases → OP101 −94.6%, IR101 ×2).
+
+## [2026-09-24] Portfolio table fix + proxy validation (diagnosis)
+**Built:** numeric headers flush right over their numbers (the header used row-reverse with flex-end, which aligned left); new "Review volume" column (new + refurbished), default sort.
+**Tested:** live: every numeric label's right edge equals its column's value edge (522/522, 715/715, 931/931, 1173/1173, 1395/1395).
+**Proxy check (owner asked whether reviews can stand in for demand):** Amazon Best Sellers Rank (sales-based, one snapshot per listing at crawl, Home & Kitchen category) vs review counts, SharkNinja brand-store listings with a BSR (n=431), Spearman with bootstrap 90% ranges: last-12-month reviews -0.71 [-0.75, -0.65]; last 6 months -0.68; all-time written reviews -0.46; all-time star ratings -0.65; active listings (n=242) -0.81; within product type -0.65 to -0.85. Supports reviews as a cross-sectional demand proxy; does not validate changes over time (only one BSR snapshot; crawl date not recorded).
+**Result:** pass
+**Issues:** the time-series use of reviews (event tests) remains unvalidated against sales.
+
+## [2026-09-23] Review — Reframing assessment (no code changed)
+**Built:** docs/REVIEW_BRIEF.md (project brief and full field inventory); independent Fable review saved as docs/REVIEW_FABLE.md. It recommends reframing from "demand evidence" to post-purchase quality insight (complaint themes, time to failure, rating decline over product life, refurbished gap), with the event tests moved to a Method appendix.
+**Tested:** Re-derived the reviewer's headline numbers with independent queries: rating decline year 1 vs years 3-4, 60 products (reviewer 61), -0.47 stars, 58 of 60 fall, low-star share 11.1% to 23.6%; refurbished gap -0.12 naive vs -0.05 within the same product and year (62 cells); stated time to failure median 6 months, 86% within 12, 23% at exactly 12 (looser regex, n=6,816 vs 3,162, same shape); S3501 low-star share 20.7% (2021), 41.0% (2022), 53.3% (2023); discontinued flag never "Yes" (905 No, 4 false).
+**Result:** pass (numbers reproduce)
+**Issues:** the general rise in low-star share has no non-SharkNinja comparator on disk, so it may be Amazon-wide; the full raw files were streamed, not kept, so a comparator needs a fresh streamed extract.
+
+## [2026-09-23] Reframe R1 to R3 — Peer brands, complaint themes, post-purchase analysis
+**Built:** `scripts/extract_comparators.py` (streams the public Home & Kitchen and Appliances files, keeps Bissell, Dyson,
+iRobot, Keurig, Instant Pot; 67.4M review lines read, 666,776 kept); `pipeline/comparators.py` (same rules, units only,
+types SharkNinja also sells: 1,404 units, 443,634 reviews); `pipeline/themes.py` (24 keyword themes plus stated
+time-to-failure bands, all reviews both sets); `pipeline/lifecycle.py` (pq_* tables: life-cycle drift, curve, trend,
+theme shares by type and product, failure bands, refurbished cells and arrival themes, case studies, theme meta, peer
+brands); `pipeline/export_web.py` rewritten for the new front end. Fix in `rules.py`: coffee checked before blender
+(6 "Coffee Bar Auto-iQ" listings were typed blender; dry run showed exactly those 6 change). Full pipeline rerun; event
+tests now 2,822 events, 808 testable, 0 survive FDR, held-out placebo false-alarm 8.9%.
+**Tested:** theme precision on blind labels (Sonnet labeller, 25 low-star reviews per theme; round 2 re-sampled the 6
+themes whose rules were tightened): all 24 themes 0.80 to 1.00, overall 0.89 on 600 pairs (`eval/theme_precision.csv`);
+spot-read 10 round-2 labels. Case-study baseline changed from SharkNinja's own type trend (which contains the product;
+S3501 is most steam mops) to the peer brands' type trend. Headline numbers in `data/clean/postpurchase_report.md`.
+**Result:** pass
+**Issues:** the peer comparison changes the earlier review's story: the rise in low-star share is shared by peers
+(peers 13.5% to 28.0%, SharkNinja 14.2% to 23.7%, 2015 to 2022) and ratings fall with product age for peers too
+(-0.37 vs -0.46). Peer sets are thin for some types (irons n=1 product in drift, robots n=3 SharkNinja).
+
+## [2026-09-23] Reframe R5 — Assistant tools
+**Built:** `app/tools.py`: get_product_complaints, compare_product_type (SharkNinja-only answer when peers lack the
+type), rank_products (low_star_share, complaint_share by theme, rating_change), find_cases (complaint jumps),
+get_findings (new), search_reviews theme filter and helpful sort, set_view defaults to rating. Event and growth tools
+removed. New system prompt; mock intents; tests; 21 real-model cases.
+**Tested:** pytest 70 passed (mock mode); smoke calls of every tool against the real tables.
+**Result:** pass (real-model run pending)
+**Issues:** none
+
+## [2026-09-23] Reframe R4 — Front end "After the Sale"
+**Built:** Sonnet builder rebuilt `web/` to `docs/SPEC_after_the_sale.md` (Overview with key findings and a product-type
+table; Product page with complaint mix vs type and peers, quotes, year table, life-cycle chart, refurbished block;
+Findings with six sections; Method with peer brands, theme precision table and the event-test appendix; event page
+removed with redirect). My review pass fixed: drift shown as percent (stars), trend and headline years (2015 to 2022
+instead of noisy 2012 and partial 2023), failure copy that read as failure rates, "X, not Y" phrasing, a wrong
+"1 in 6" subtitle, raw type names, clipped chart labels (wrapping), sparse-month rating noise (months under 5 reviews
+hidden), year highlighting on small samples, arrival breakdown on under 30 low-star refurbished reviews, Method claims
+that peers were entity-resolved (they are listing-level) and unlabelled totals. Export: NaN written into 361 product
+files fixed at source (`allow_nan=False` now fails loudly). Peer set cleaned after reading the top peer listings per
+type: carpet shampooers, CrossWave, SteamShot, Spinwave, robot mops, air-fryer lids and boards excluded; peer irons
+(steam cleaners, steamer baskets, fans coloured "Iron") and manual sweepers dropped; peer brand counts only with 200+
+reviews in a type.
+**Tested:** Browser pane at 1440 px and 375 px (no horizontal scroll), Overview, Product (S3501), Findings, Method,
+no console errors; pytest 71 passed; real Haiku run 20 of 21 (the ambiguous "show me the vacuum" case skips the
+lookup about 1 run in 5 after a prompt example; accepted as a known limit); nginx switch script dry-run on a copy of
+the live config (idempotent).
+**Result:** pass (not deployed)
+**Issues:** chat clarification rule is probabilistic on Haiku.

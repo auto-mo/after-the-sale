@@ -1,4 +1,4 @@
-"""Configuration for the Demand Evidence chat service.
+"""Configuration for the After the Sale chat service.
 
 Everything is loaded from environment variables (via `app/.env` in dev). Nothing is
 hard-coded. See app/.env.example for the full list of variables and placeholder values.

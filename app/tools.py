@@ -1,4 +1,4 @@
-"""Read-only tool implementations for the Demand Evidence chat service.
+"""Read-only tool implementations for the After the Sale chat service.
 
 All SQL is parameterized (DuckDB `?` placeholders). Tools never accept raw SQL or file
 paths from the model — every query here is a fixed statement with bound parameters.
@@ -56,30 +56,6 @@ def _parse_month(s: str, field: str) -> str:
     return s[:7]
 
 
-def _pct(v):
-    return f"{'+' if v >= 0 else '-'}{abs(v):.1f}%"
-
-
-def _event_summary(e: dict) -> str:
-    """Deterministic one-sentence reading of an event test (same logic as the page headline)."""
-    et, detail = e.get("event_type"), e.get("detail") or ""
-    what = (f"a low-rating month ({detail.split(' (')[0]})" if et == "low_rating"
-            else "refurbished units appearing" if et == "refurbished" else detail or et)
-    when = e.get("event_month")
-    before, after = e.get("pre_mean"), e.get("post_mean")
-    raw = ""
-    if before is not None and after is not None:
-        raw = f" Raw reviews went from {before:.1f} to {after:.1f} a month."
-    if e["verdict"] == "not_enough_data":
-        return f"Not enough data to test this product around {what} ({when}): {e.get('reason')}."
-    eff, lo, hi = e.get("effect_pct"), e.get("lo_pct"), e.get("hi_pct")
-    rel = f"{_pct(eff)} compared with similar products (range {_pct(lo)} to {_pct(hi)})"
-    if e["verdict"] == "moved":
-        return f"New-unit reviews moved {'up' if eff > 0 else 'down'} after {what} ({when}): {rel}.{raw}"
-    return (f"No clear change after {what} ({when}): {rel}, which is within this product's normal swings "
-            f"and not distinguishable from chance.{raw}")
-
-
 class ToolBox:
     """Owns the DuckDB connection and exposes each tool as a bound method.
 
@@ -105,19 +81,20 @@ class ToolBox:
         # View creation cannot take a prepared-statement parameter for the file path in
         # DuckDB, so we inline the path here. This path is never derived from model or
         # user input — it comes only from server-side config (DATA_DIR) at startup, and
-        # sn_event_pooled has no product_id column so it isn't filtered.
+        # the analysis tables below are not filtered.
         with self._lock:
             # These have a product_id column: filter out unmatched rows per the build
             # instructions ("Exclude rows whose product_id is null").
-            for name in ("sn_product_summary", "sn_panel_month", "sn_event_test", "sn_listing_product"):
+            for name in ("sn_product_summary", "sn_panel_month", "sn_listing_product"):
                 path = self._p(name).replace("'", "''")
                 self._con.execute(
                     f"CREATE OR REPLACE VIEW {name} AS "
                     f"SELECT * FROM read_parquet('{path}') WHERE product_id IS NOT NULL"
                 )
-            # These have no product_id column of their own (sn_review links to a product
-            # via sn_listing_product.parent_asin; sn_event_pooled is already aggregated).
-            for name in ("sn_review", "sn_event_pooled"):
+            # No product_id column of their own: reviews and theme flags link through parent_asin / review_id;
+            # the pq_* tables are the post-purchase analysis outputs (pipeline/lifecycle.py).
+            for name in ("sn_review", "sn_review_theme", "pq_theme_meta", "pq_theme_type", "pq_drift", "pq_fail_summary",
+                         "pq_trend", "pq_trend_type", "pq_cases", "pq_refurb_cells", "pq_refurb_themes", "pq_peer_brands"):
                 path = self._p(name).replace("'", "''")
                 self._con.execute(f"CREATE OR REPLACE VIEW {name} AS SELECT * FROM read_parquet('{path}')")
 
@@ -130,11 +107,17 @@ class ToolBox:
             self._types = sorted(r["product_type"] for r in self._query(
                 "SELECT DISTINCT product_type FROM sn_product_summary WHERE product_type IS NOT NULL", []))
         v = value.strip().lower().replace("_", " ")
+        # "vacuum(s)" alone means every vacuum type; callers filter with LIKE, so this pattern matches all of them.
+        if v.rstrip("s") in ("vacuum", "vacuum cleaner", "vac", "all vacuum"):
+            return "vacuum-%"
         cands = {v, v.rstrip("s"), v[:-2] if v.endswith("es") else v}
         for t in self._types:
             tl = t.lower()
             flat = tl.replace("vacuum-", "").replace("/", " ")
             if tl in cands or flat in cands or any(c and (c == tl.split("-")[-1] or f"{flat} vacuum" == c or f"{flat} vacuum".rstrip("s") == c) for c in cands):
+                return t
+            # "upright vacuum" or "canister" for vacuum-upright/canister
+            if tl.startswith("vacuum-") and any(c in (p, f"{p} vacuum") for p in re.split(r"[ /]", flat) for c in cands):
                 return t
         raise ToolError(f"Unknown product type '{value}'. Valid types: {', '.join(self._types)}")
 
@@ -181,7 +164,7 @@ class ToolBox:
         )
         params.extend([f"%{w}%" for w in words] if words else [])
         if type:
-            sql += " AND product_type = ?"
+            sql += " AND product_type LIKE ?"
             params.append(self._norm_type(type))
         if family:
             sql += " AND family = ?"
@@ -259,229 +242,307 @@ class ToolBox:
         }
 
     # ------------------------------------------------------------------
-    # 3. get_product_events
+    # theme helpers
     # ------------------------------------------------------------------
-    def get_product_events(self, product_id: str) -> dict:
+    def _themes(self) -> list[dict]:
+        if not hasattr(self, "_theme_meta"):
+            self._theme_meta = self._query(
+                "SELECT theme, label, grp, precision, weak FROM pq_theme_meta", [])
+        return self._theme_meta
+
+    def _shown_themes(self, include_service: bool = True) -> list[str]:
+        return [t["theme"] for t in self._themes()
+                if not t["weak"] and (include_service or t["theme"] != "warranty_service")]
+
+    def _label(self, key: str) -> str:
+        return next((t["label"] for t in self._themes() if t["theme"] == key), key)
+
+    def _norm_theme(self, value: str) -> str:
+        """Accept a theme key or label in loose phrasing ('app', 'leaks', 'brush roll') and return its key."""
+        v = (value or "").strip().lower().replace("_", " ")
+        shown = self._shown_themes()
+        for t in self._themes():
+            if t["theme"] not in shown:
+                continue
+            key, lab = t["theme"].replace("_", " "), t["label"].lower()
+            if v in (key, lab) or v.rstrip("s") in (key, lab.rstrip("s")) or (len(v) >= 3 and (v in lab or v in key)):
+                return t["theme"]
+        raise ToolError(f"Unknown complaint theme '{value}'. Valid themes: "
+                        + ", ".join(f"{t['theme']} ({t['label']})" for t in self._themes() if t['theme'] in shown))
+
+    def _shares(self, row: dict, keys: list[str]) -> list[dict]:
+        out = [{"theme": k, "label": self._label(k), "share_of_low_star": round(row[k], 4)}
+               for k in keys if row.get(k) is not None]
+        return sorted(out, key=lambda x: -x["share_of_low_star"])
+
+    # ------------------------------------------------------------------
+    # 3. get_product_complaints
+    # ------------------------------------------------------------------
+    def get_product_complaints(self, product_id: str) -> dict:
         product = self._product_exists(product_id)
         if not product:
             raise ToolError(f"Unknown product_id: {product_id!r}")
+        keys = self._shown_themes()
+        cols = ", ".join(f"avg(t.{k}::INT) FILTER (WHERE r.rating <= 2) AS {k}" for k in keys)
+        base = ("FROM sn_review r JOIN sn_listing_product lp USING (parent_asin) JOIN sn_review_theme t USING (review_id) "
+                "WHERE lp.product_id = ? AND r.review_date < DATE '2023-04-01'")
         rows = self._query(
-            "SELECT event_id, event_type, event_month, related_product, detail, "
-            "verdict, effect_pct, lo_pct, hi_pct, reason, n_controls, control_tier, "
-            "survives_fdr, pre_reviews, pre_mean, post_mean "
-            "FROM sn_event_test WHERE product_id = ? ORDER BY event_month LIMIT 50",
-            [product_id],
-        )
-        for r in rows:
-            r["plain_summary"] = _event_summary(r)
-            # Clearer names so the model cannot confuse the comparison effect with the raw change.
-            r["change_vs_comparison_pct"] = r.pop("effect_pct")
-            r["raw_avg_reviews_per_month_before"] = r.pop("pre_mean")
-            r["raw_avg_reviews_per_month_after"] = r.pop("post_mean")
-        return {"product_id": product_id, "canonical_title": product["canonical_title"], "events": rows, "count": len(rows),
-                "how_to_read": "Quote plain_summary. change_vs_comparison_pct compares this product's change with similar "
-                               "products that had no such event; it is not the raw change in reviews."}
+            f"SELECT CASE WHEN lp.segment = 'renewed' THEN 'refurbished' ELSE 'new' END AS channel, count(*) AS reviews, "
+            f"avg(r.rating) AS avg_rating, count(*) FILTER (WHERE r.rating <= 2) AS low_star_reviews, "
+            f"avg((r.rating <= 2)::INT) AS low_star_share, {cols} {base} GROUP BY 1", [product_id])
+        by = {r["channel"]: r for r in rows}
+        new = by.get("new")
+        out: dict[str, Any] = {"product_id": product_id, "canonical_title": product["canonical_title"],
+                               "product_type": product["product_type"], "data_complete_through": DATA_COMPLETE_THROUGH}
+        if not new or new["low_star_reviews"] < 30:
+            out["note"] = "Fewer than 30 low-star new-unit reviews, so there is no reliable complaint breakdown."
+            out["new_units"] = {k: new[k] for k in ("reviews", "avg_rating", "low_star_reviews")} if new else None
+            return out
+        problems = [k for k in keys if k != "warranty_service"]
+        out["new_units"] = {"reviews": int(new["reviews"]), "avg_rating": round(new["avg_rating"], 2),
+                            "low_star_reviews": int(new["low_star_reviews"]), "low_star_share": round(new["low_star_share"], 4),
+                            "top_complaints": self._shares(new, problems)[:6],
+                            "warranty_and_service_share": round(new.get("warranty_service") or 0, 4)}
+        ref = self._query(f"SELECT brand_set, n_low, {', '.join(problems)} FROM pq_theme_type WHERE product_type = ?",
+                          [product["product_type"]])
+        for r in ref:
+            name = "type_average_sharkninja" if r["brand_set"] == "SharkNinja" else "type_average_peer_brands"
+            out[name] = {"low_star_reviews": int(r["n_low"]),
+                         "shares": {x["theme"]: round(r[x["theme"]], 4) for x in out["new_units"]["top_complaints"]}}
+        years = self._query(
+            f"SELECT year(r.review_date) AS year, count(*) AS reviews, avg((r.rating <= 2)::INT) AS low_star_share, "
+            f"count(*) FILTER (WHERE r.rating <= 2) AS low_star_reviews, {cols} {base} AND lp.segment <> 'renewed' "
+            f"GROUP BY 1 ORDER BY 1", [product_id])
+        out["by_year"] = []
+        for y in years[-12:]:
+            d = {"year": y["year"], "reviews": int(y["reviews"]), "low_star_share": round(y["low_star_share"], 4)}
+            if y["low_star_reviews"] >= 15:
+                top = self._shares(y, problems)[:1]
+                d["top_complaint"] = top[0] if top else None
+            out["by_year"].append(d)
+        # The largest one-year rise in low-star share (10+ points, 100+ reviews both years), said plainly.
+        prev = None
+        best = None
+        for y in years:
+            if prev and y["year"] == prev["year"] + 1 and y["reviews"] >= 100 and prev["reviews"] >= 100:
+                jump = y["low_star_share"] - prev["low_star_share"]
+                if jump >= 0.10 and (best is None or jump > best[0]):
+                    best = (jump, prev, y)
+            prev = y
+        if best:
+            jump, a, b = best
+            top = self._shares(b, problems)[:1] if b["low_star_reviews"] >= 15 else []
+            out["notable_change"] = (f"The share of 1 and 2-star reviews rose from {a['low_star_share']:.0%} in {a['year']} to "
+                                     f"{b['low_star_share']:.0%} in {b['year']}"
+                                     + (f"; the most common complaint in {b['year']} was {top[0]['label'].lower()}" if top else "")
+                                     + ". The data cannot say why.")
+        drift = self._query("SELECT n1, r1, n3, r3, change FROM pq_drift WHERE brand_set = 'SharkNinja' AND unit_id = ?",
+                            [product_id])
+        if drift:
+            d = drift[0]
+            out["rating_over_life"] = {"year_1_rating": round(d["r1"], 2), "years_3_to_4_rating": round(d["r3"], 2),
+                                       "change": round(d["change"], 2), "year_1_reviews": int(d["n1"]),
+                                       "years_3_to_4_reviews": int(d["n3"])}
+        if "refurbished" in by:
+            rf = by["refurbished"]
+            arr = ["missing_parts", "arrived_damaged_used", "not_as_described", "dead_on_arrival"]
+            out["refurbished_units"] = {
+                "reviews": int(rf["reviews"]), "avg_rating": round(rf["avg_rating"], 2),
+                "low_star_share": round(rf["low_star_share"], 4), "low_star_reviews": int(rf["low_star_reviews"]),
+                "arrival_complaints_refurbished": {k: round(rf[k] or 0, 4) for k in arr},
+                "arrival_complaints_new": {k: round(new[k] or 0, 4) for k in arr}}
+            cells = self._query("SELECT yr, r_ref, n_ref, r_new, n_new, gap FROM pq_refurb_cells WHERE unit_id = ? ORDER BY yr",
+                                [product_id])
+            if cells:
+                out["refurbished_units"]["same_year_comparison"] = [
+                    {"year": c["yr"], "refurbished_rating": round(c["r_ref"], 2), "new_rating": round(c["r_new"], 2),
+                     "gap": round(c["gap"], 2)} for c in cells]
+        out["how_to_read"] = ("Shares are shares of 1 and 2-star reviews that mention the complaint (keyword rules), "
+                              "never failure rates. Peer brands are Bissell, Dyson, iRobot, Keurig and Instant Pot units of "
+                              "the same product type.")
+        return out
 
     # ------------------------------------------------------------------
-    # 3b. find_cases: the largest observed moves among tested events (demo scenarios, e.g. cannibalisation)
+    # 3b. compare_product_type: SharkNinja vs peer brands within a product type
     # ------------------------------------------------------------------
-    CASE_TYPES = ("sibling_launch", "refurbished", "low_rating")
-
-    def find_cases(self, event_type: str, direction: str = "down", type: str | None = None,
-                   family: str | None = None, limit: int = 5) -> dict:
-        if event_type not in self.CASE_TYPES:
-            raise ToolError(f"event_type must be one of {self.CASE_TYPES}")
-        if direction not in ("down", "up"):
-            raise ToolError("direction must be 'down' or 'up'")
-        limit = max(1, min(int(limit or 5), 10))
-        sql = ("SELECT e.product_id, p.model_key, p.canonical_title, p.product_type, e.event_id, e.event_type, "
-               "e.event_month, e.detail, e.verdict, e.reason, e.effect_pct, e.lo_pct, e.hi_pct, e.pre_mean, e.post_mean, "
-               "e.n_controls, e.control_tier, e.near_zero_after "
-               "FROM sn_event_test e JOIN sn_product_summary p USING (product_id) "
-               "WHERE e.event_type = ? AND e.verdict <> 'not_enough_data' AND e.effect_pct IS NOT NULL")
-        params: list[Any] = [event_type]
-        if type:
-            sql += " AND p.product_type = ?"
-            params.append(self._norm_type(type))
-        if family:
-            sql += " AND p.family = ?"
-            params.append(family.upper())
-        sql += f" ORDER BY e.effect_pct {'ASC' if direction == 'down' else 'DESC'} LIMIT ?"
-        params.append(limit)
-        rows = self._query(sql, params)
-        for r in rows:
-            r["plain_summary"] = _event_summary(r)
-            r["change_vs_comparison_pct"] = r.pop("effect_pct")
-        return {
-            "event_type": event_type, "direction": direction, "cases": rows, "count": len(rows),
-            "how_to_read": ("These are the largest observed changes versus similar products among events with enough data. "
-                            "None survives the false-discovery check across all 819 tested events, so present each as a case "
-                            "worth inspecting on its evidence page, never as a proven effect. For cannibalisation use "
-                            "event_type=sibling_launch, direction=down. Flag near_zero_after cases as possible discontinuations."),
+    def compare_product_type(self, type: str) -> dict:
+        t = self._norm_type(type)
+        if "%" in t:
+            raise ToolError("Pick one vacuum type: upright, stick, handheld or robot vacuum.")
+        problems = self._shown_themes(include_service=False)
+        ref = {r["brand_set"]: r for r in self._query(
+            f"SELECT brand_set, n_low, {', '.join(problems)} FROM pq_theme_type WHERE product_type = ?", [t])}
+        comparable = self._query("SELECT count(DISTINCT brand_set) AS n FROM pq_trend_type WHERE product_type = ?", [t])
+        if "SharkNinja" not in ref:
+            raise ToolError(f"No SharkNinja complaint data for '{t}'.")
+        sn = ref["SharkNinja"]
+        drift = self._query("SELECT brand_set, count(*) AS products, avg(change) AS mean_change FROM pq_drift "
+                            "WHERE product_type = ? GROUP BY 1", [t])
+        fail = self._query("SELECT brand_set, n, median_months, within_year FROM pq_fail_summary WHERE product_type = ?", [t])
+        common = {
+            "rating_change_year1_to_years3to4": {d["brand_set"]: {"products": int(d["products"]),
+                                                                   "mean_change": round(d["mean_change"], 2)} for d in drift},
+            "stated_time_to_failure": {f["brand_set"]: {"reviews_stating_a_time": int(f["n"]),
+                                                          "median_months": f["median_months"],
+                                                          "of_reviews_stating_a_time_share_under_12_months": round(f["within_year"], 3)} for f in fail},
+            "how_to_read": "Shares of 1 and 2-star new-unit reviews mentioning each complaint, never failure rates.",
         }
+        if "Peers" not in ref or comparable[0]["n"] < 2:
+            for k in ("rating_change_year1_to_years3to4", "stated_time_to_failure"):
+                common[k] = {b: v for b, v in common[k].items() if b == "SharkNinja"}
+            return {"product_type": t, "peer_brands": None,
+                    "note": "The peer brands have too few reviews of this product type to compare; SharkNinja figures only.",
+                    "low_star_reviews": {"sharkninja": int(sn["n_low"])},
+                    "top_complaints_sharkninja": self._shares(sn, problems)[:5], **common}
+        pe = ref["Peers"]
+        gaps = sorted(problems, key=lambda k: -((sn[k] or 0) - (pe[k] or 0)))
+        brands = self._query("SELECT list(brand ORDER BY brand) AS b FROM pq_peer_brands WHERE product_type = ?", [t])
+        return {
+            "product_type": t, "peer_brands": brands[0]["b"] if brands else None,
+            "low_star_reviews": {"sharkninja": int(sn["n_low"]), "peers": int(pe["n_low"])},
+            "top_complaints_sharkninja": [dict(x, peers=round(pe[x["theme"]], 4)) for x in self._shares(sn, problems)[:5]],
+            "largest_gaps_vs_peers": [{"theme": k, "label": self._label(k), "sharkninja": round(sn[k], 4),
+                                       "peers": round(pe[k], 4)} for k in gaps[:3]],
+            **common,
+        }
+
+    # ------------------------------------------------------------------
+    # 3c. find_cases: products whose complaints jumped in one year, beyond the peer brands' own change
+    # ------------------------------------------------------------------
+    def find_cases(self, type: str | None = None, limit: int = 5) -> dict:
+        limit = max(1, min(int(limit or 5), 12))
+        sql = ("SELECT unit_id AS product_id, unit_label, product_type, prev_yr, yr, prev_n, n, prev_low, low_share, "
+               "type_jump, excess, rising_themes FROM pq_cases")
+        params: list[Any] = []
+        if type:
+            sql += " WHERE product_type LIKE ?"
+            params.append(self._norm_type(type))
+        rows = self._query(sql + " ORDER BY excess DESC LIMIT ?", params + [limit])
+        cases = []
+        for r in rows:
+            cases.append({
+                "product_id": r["product_id"], "model": r["unit_label"], "product_type": r["product_type"],
+                "from_year": int(r["prev_yr"]), "to_year": int(r["yr"]),
+                "low_star_share_before": round(r["prev_low"], 4), "low_star_share_after": round(r["low_share"], 4),
+                "reviews_before": int(r["prev_n"]), "reviews_after": int(r["n"]),
+                "peer_brands_change_same_year": round(r["type_jump"], 4),
+                "rising_complaints": [{"label": self._label(x["theme"]), "change": x["change"]} for x in (r["rising_themes"] or [])]})
+        return {"cases": cases, "count": len(cases),
+                "how_to_read": ("Largest one-year rises in a product's share of 1 and 2-star reviews, after subtracting how "
+                                "much the peer brands' share moved that year in the same type. Descriptive: the data "
+                                "cannot say why.")}
 
     # ------------------------------------------------------------------
     # 4. rank_products
     # ------------------------------------------------------------------
-    GROWTH_DEFINITION = (
-        "growth = (reviews in the second half of the window - reviews in the first half) "
-        "/ reviews in the first half, using channel='new' monthly review counts. The window "
-        "is split into two equal-length halves by month count (the later half gets the extra "
-        "month if the count is odd). Products with zero reviews in the first half are excluded "
-        "(growth is undefined)."
-    )
-
-    def rank_products(
-        self,
-        metric: str,
-        type: str | None = None,
-        family: str | None = None,
-        from_: str | None = None,
-        to: str | None = None,
-        min_reviews: int = 50,
-        limit: int = 10,
-    ) -> dict:
-        allowed_metrics = ("reviews_new", "reviews_renewed", "refurbished_share", "avg_rating_new", "growth")
-        if metric not in allowed_metrics:
-            raise ToolError(f"metric must be one of {allowed_metrics}")
+    def rank_products(self, metric: str, type: str | None = None, family: str | None = None,
+                      theme: str | None = None, min_reviews: int = 100, limit: int = 10) -> dict:
+        allowed = ("reviews_new", "avg_rating_new", "low_star_share", "complaint_share", "rating_change", "refurbished_share")
+        if metric not in allowed:
+            raise ToolError(f"metric must be one of {allowed}")
         limit = max(1, min(int(limit or 10), 10))
-        min_reviews = max(0, int(min_reviews or 0))
-
-        base_sql = "SELECT product_id, canonical_title, product_type, family, reviews_new, reviews_renewed, avg_rating_new FROM sn_product_summary WHERE (is_accessory IS NOT TRUE)"
-        params: list[Any] = []
+        min_reviews = max(0, int(min_reviews if min_reviews is not None else 100))
+        where, params = ["(s.is_accessory IS NOT TRUE)", "COALESCE(s.reviews_new,0) >= ?"], [min_reviews]
         if type:
-            base_sql += " AND product_type = ?"
+            where.append("s.product_type LIKE ?")
             params.append(self._norm_type(type))
         if family:
-            base_sql += " AND family = ?"
-            params.append(family)
-        base_sql += " AND (COALESCE(reviews_new,0) + COALESCE(reviews_renewed,0)) >= ?"
-        params.append(min_reviews)
-
-        if metric != "growth":
-            candidates = self._query(base_sql, params)
-            for c in candidates:
-                rn = c["reviews_new"] or 0
-                rr = c["reviews_renewed"] or 0
-                c["reviews_new"] = int(rn)
-                c["reviews_renewed"] = int(rr)
-                c["refurbished_share"] = round(rr / (rn + rr), 4) if (rn + rr) else None
-            if metric == "avg_rating_new":
-                candidates = [c for c in candidates if c["avg_rating_new"] is not None]
-                candidates.sort(key=lambda c: c["avg_rating_new"], reverse=True)
-            else:
-                candidates = [c for c in candidates if c.get(metric) is not None]
-                if metric == "refurbished_share":
-                    # Refurbished-only products (listings that could not be linked to their new-unit listing) would all
-                    # score 100%; the share is only meaningful with real new-unit volume.
-                    candidates = [c for c in candidates if c["reviews_new"] >= 20]
-                candidates.sort(key=lambda c: c[metric], reverse=True)
-            top = candidates[:limit]
-            for c in top:
-                c["metric"] = metric
-                c["value"] = c[metric]
-            out = {"metric": metric, "results": top, "count": len(top)}
-            if metric == "refurbished_share":
-                out["definition"] = "refurbished reviews / all reviews, among products with at least 20 new-unit reviews"
-            return out
-
-        # growth: needs per-product monthly panel within the window.
-        candidates = self._query(base_sql, params)
-        ids = [c["product_id"] for c in candidates]
-        if not ids:
-            return {"metric": metric, "definition": self.GROWTH_DEFINITION, "results": [], "count": 0}
-
-        from_m = _parse_month(from_, "from") if from_ else None
-        to_m = _parse_month(to, "to") if to else None
-        to_m = min(to_m, MAX_VIEW_MONTH) if to_m else MAX_VIEW_MONTH
-
-        sql = (
-            "SELECT product_id, month, reviews FROM sn_panel_month "
-            "WHERE channel = 'new' AND product_id = ANY(?) AND strftime(month, '%Y-%m') <= ?"
-        )
-        p: list[Any] = [ids, to_m]
-        if from_m:
-            sql += " AND strftime(month, '%Y-%m') >= ?"
-            p.append(from_m)
-        sql += " ORDER BY product_id, month"
-        panel = self._query(sql, p)
-
-        by_product: dict[str, list[int]] = {}
-        for r in panel:
-            by_product.setdefault(r["product_id"], []).append(int(r["reviews"] or 0))
-
-        results = []
-        by_id = {c["product_id"]: c for c in candidates}
-        for pid, series in by_product.items():
-            n = len(series)
-            if n < 2:
-                continue
-            half = n // 2
-            first = series[:half]
-            second = series[half:]
-            first_sum = sum(first)
-            second_sum = sum(second)
-            if first_sum == 0:
-                continue
-            growth = (second_sum - first_sum) / first_sum
-            c = by_id.get(pid, {})
-            results.append(
-                {
-                    "product_id": pid,
-                    "canonical_title": c.get("canonical_title"),
-                    "product_type": c.get("product_type"),
-                    "family": c.get("family"),
-                    "metric": "growth",
-                    "value": round(growth, 4),
-                    "first_half_reviews": first_sum,
-                    "second_half_reviews": second_sum,
-                }
-            )
-        results.sort(key=lambda r: r["value"], reverse=True)
-        top = results[:limit]
-        return {"metric": metric, "definition": self.GROWTH_DEFINITION, "results": top, "count": len(top)}
+            where.append("s.family = ?")
+            params.append(family.upper())
+        w = " AND ".join(where)
+        head = "SELECT s.product_id, s.model_key, s.canonical_title, s.product_type, s.reviews_new"
+        if metric in ("reviews_new", "avg_rating_new", "refurbished_share"):
+            rows = self._query(f"{head}, s.avg_rating_new, s.reviews_renewed FROM sn_product_summary s WHERE {w}", params)
+            for r in rows:
+                rn, rr = r["reviews_new"] or 0, r["reviews_renewed"] or 0
+                r["value"] = (rn if metric == "reviews_new" else r["avg_rating_new"] if metric == "avg_rating_new"
+                              else (round(rr / (rn + rr), 4) if rn + rr else None))
+            definition = {"refurbished_share": "refurbished reviews / all reviews"}.get(metric)
+        elif metric == "rating_change":
+            rows = self._query(f"{head}, d.change AS value, d.r1, d.r3 FROM sn_product_summary s JOIN pq_drift d "
+                               f"ON d.unit_id = s.product_id AND d.brand_set = 'SharkNinja' WHERE {w}", params)
+            definition = "mean rating in years 3 to 4 of the product's life minus year 1 (products with 100+ reviews in both)"
+        else:
+            k = "(r.rating <= 2)" if metric == "low_star_share" else f"t.{self._norm_theme(theme or '')}"
+            filt = "" if metric == "low_star_share" else "FILTER (WHERE r.rating <= 2)"
+            rows = self._query(
+                f"{head}, avg({k}::INT) {filt} AS value, count(*) FILTER (WHERE r.rating <= 2) AS low_star_reviews "
+                f"FROM sn_product_summary s JOIN sn_listing_product lp USING (product_id) JOIN sn_review r USING (parent_asin) "
+                f"JOIN sn_review_theme t USING (review_id) WHERE {w} AND lp.segment <> 'renewed' "
+                f"AND r.review_date < DATE '2023-04-01' GROUP BY ALL "
+                f"HAVING count(*) FILTER (WHERE r.rating <= 2) >= 30", params)
+            definition = ("share of new-unit reviews rated 1 or 2 stars" if metric == "low_star_share" else
+                          f"share of 1 and 2-star new-unit reviews mentioning '{self._label(self._norm_theme(theme or ''))}' "
+                          "(products with 30+ low-star reviews)")
+        rows = [r for r in rows if r.get("value") is not None]
+        rows.sort(key=lambda r: r["value"], reverse=metric != "rating_change")
+        for r in rows:
+            r["reviews_new"] = int(r["reviews_new"] or 0)
+            r["value"] = round(float(r["value"]), 4)
+        out = {"metric": metric, "results": rows[:limit], "count": min(limit, len(rows))}
+        if definition:
+            out["definition"] = definition
+        if metric == "rating_change":
+            out["note"] = "Sorted from the largest fall."
+        return out
 
     # ------------------------------------------------------------------
     # 5. get_findings
     # ------------------------------------------------------------------
     def get_findings(self) -> dict:
-        pooled = self._query(
-            'SELECT event_type, n_events, n_products, "window", avg_effect_pct, lo_pct, hi_pct, verdict '
-            "FROM sn_event_pooled ORDER BY event_type",
-            [],
-        )
-        verdict_counts = self._query(
-            "SELECT verdict, COUNT(*) AS n FROM sn_event_test GROUP BY verdict ORDER BY verdict", []
-        )
-        fdr = self._query(
-            "SELECT COUNT(*) FILTER (WHERE survives_fdr) AS survives, COUNT(*) AS tested "
-            "FROM sn_event_test WHERE verdict != 'not_enough_data'",
-            [],
-        )[0]
+        drift = self._query("SELECT brand_set, count(*) AS products, avg(change) AS mean_change, "
+                            "sum((change < 0)::INT) AS fell, avg(l1) AS low_year1, avg(l3) AS low_years3to4 "
+                            "FROM pq_drift GROUP BY 1", [])
+        trend = self._query("SELECT brand_set, yr, low_share FROM pq_trend WHERE yr IN (2015, 2019, 2022) ORDER BY 1, 2", [])
+        # NB: shares below are fractions; plain_summaries are the sentences to quote.
+        fail = self._query("SELECT brand_set, n, median_months, within_year FROM pq_fail_summary "
+                           "WHERE product_type = 'All types'", [])
+        cells = self._query("SELECT count(*) AS cells, count(DISTINCT unit_id) AS products, avg(gap) AS mean_gap, "
+                            "avg((gap < 0)::INT) AS refurb_lower FROM pq_refurb_cells", [])[0]
+        arr = {r["channel"]: r for r in self._query(
+            "SELECT channel, missing_parts, arrived_damaged_used, dead_on_arrival, not_as_described FROM pq_refurb_themes", [])}
+        d = {x["brand_set"]: x for x in drift}
+        f = {x["brand_set"]: x for x in fail}
+        tr = {(t["brand_set"], t["yr"]): t["low_share"] for t in trend}
+        plain = [
+            (f"Ratings fall as products age for both sets: comparing year 1 with years 3 to 4 of the same product, SharkNinja "
+             f"products fell {abs(d['SharkNinja']['mean_change']):.2f} stars on average ({d['SharkNinja']['fell']} of "
+             f"{d['SharkNinja']['products']} fell) and peer-brand products {abs(d['Peers']['mean_change']):.2f} "
+             f"({d['Peers']['fell']} of {d['Peers']['products']})."),
+            (f"The share of 1 and 2-star reviews rose for both sets, from {tr[('SharkNinja', 2015)]:.0%} (2015) to "
+             f"{tr[('SharkNinja', 2022)]:.0%} (2022) for SharkNinja and {tr[('Peers', 2015)]:.0%} to "
+             f"{tr[('Peers', 2022)]:.0%} for peers, so the rise is not specific to SharkNinja."),
+            (f"Among reviews that say the product stopped working and state when, the median stated time is "
+             f"{f['SharkNinja']['median_months']:.0f} months for SharkNinja and {f['Peers']['median_months']:.0f} for peers. "
+             "These are owner statements, often rounded; they are not failure rates."),
+            (f"Refurbished units rate about the same as new ones for the same product in the same year "
+             f"({cells['mean_gap']:+.2f} stars across {int(cells['cells'])} product-years), but more of their low-star "
+             f"reviews mention missing parts ({arr['refurbished']['missing_parts']:.1%} vs {arr['new']['missing_parts']:.1%}) "
+             f"or arriving damaged or used ({arr['refurbished']['arrived_damaged_used']:.1%} vs "
+             f"{arr['new']['arrived_damaged_used']:.1%})."),
+        ]
         return {
-            "pooled_effects": pooled,
-            "per_event_verdict_counts": verdict_counts,
-            "false_discovery_result": {
-                "tested": int(fdr["tested"] or 0),
-                "survives_fdr": int(fdr["survives"] or 0),
-                "method": "Benjamini-Hochberg, q=0.10",
-                "summary": (
-                    "Of the events with enough data to test, none of the individual 'moved' calls "
-                    "survive false-discovery control. The pooled averages above (cluster bootstrap "
-                    "by product) are the findings this tool can stand behind; single-event verdicts "
-                    "are not."
-                ),
-            },
+            "plain_summaries": plain,
+            "ratings_over_product_life": {d["brand_set"]: {k: (round(v, 3) if isinstance(v, float) else v)
+                                                            for k, v in d.items() if k != "brand_set"} for d in drift},
+            "low_star_share_by_year_equal_weight_per_type": [{**t, "low_share": round(t["low_share"], 3)} for t in trend],
+            "stated_time_to_failure": {f["brand_set"]: {"reviews_stating_a_time": int(f["n"]), "median_months": f["median_months"],
+                                                         "of_reviews_stating_a_time_share_under_12_months": round(f["within_year"], 3)} for f in fail},
+            "refurbished_vs_new_same_product_same_year": {"cells": int(cells["cells"]), "products": int(cells["products"]),
+                                                          "mean_rating_gap": round(cells["mean_gap"], 3),
+                                                          "share_of_cells_refurbished_lower": round(cells["refurb_lower"], 3)},
+            "arrival_complaints_share_of_low_star": {ch: {k: round(v, 4) for k, v in r.items() if k != "channel"}
+                                                     for ch, r in arr.items()},
+            "not_detectable": ("An earlier version tested sibling launches, refurbished units appearing and low-rating months "
+                               "as events: 2,817 events, 819 testable, none survives a false-discovery check. Review "
+                               "volume is not treated as demand."),
             "limits": [
-                "Review volume and rating are a proxy for demand. There is no price, stock, sales "
-                "rank, or buy-box data behind this tool.",
-                "Data is Amazon reviews for Shark, Ninja, and Euro-Pro products, 2002 through "
-                f"March 2023 (complete through {DATA_COMPLETE_THROUGH}; months after that are "
-                "present but incomplete).",
-                "Event verdicts are associations, not causes. A sibling launch or a refurbished "
-                "listing appearing can coincide with other things happening to a product line.",
-                "No individual event 'moved' verdict survives multiple-testing correction; only "
-                "the pooled, cross-product averages are reliable.",
+                "Data is written Amazon reviews (self-selected), SharkNinja plus five peer brands (Bissell, Dyson, iRobot, "
+                f"Keurig, Instant Pot), complete through {DATA_COMPLETE_THROUGH}.",
+                "Complaint shares are shares of 1 and 2-star reviews mentioning a theme, found with keyword rules. They are "
+                "not failure or return rates.",
+                "No sales, price, stock, returns, sales rank history or seller data.",
+                "Everything here is descriptive; the data cannot say why a rating changed.",
             ],
         }
 
@@ -497,6 +558,8 @@ class ToolBox:
         min_rating: int | None = None,
         max_rating: int | None = None,
         contains: str | None = None,
+        theme: str | None = None,
+        sort: str = "recent",
         limit: int = 15,
     ) -> dict:
         product = self._product_exists(product_id)
@@ -508,6 +571,7 @@ class ToolBox:
             "SELECT r.review_date, r.review_month, r.rating, r.verified_purchase, "
             "r.helpful_vote, r.review_title, r.review_text, lp.segment "
             "FROM sn_review r JOIN sn_listing_product lp ON r.parent_asin = lp.parent_asin "
+            "JOIN sn_review_theme t ON t.review_id = r.review_id "
             "WHERE lp.product_id = ?"
         )
         params: list[Any] = [product_id]
@@ -534,10 +598,15 @@ class ToolBox:
             like = f"%{contains.strip()}%"
             params.extend([like, like])
 
-        count_sql = "SELECT COUNT(*) AS n FROM (" + sql + ") t"
+        if theme:
+            sql += f" AND t.{self._norm_theme(theme)}"  # key validated against the theme table, never raw input
+        if sort not in ("recent", "helpful"):
+            raise ToolError("sort must be 'recent' or 'helpful'")
+
+        count_sql = "SELECT COUNT(*) AS n FROM (" + sql + ") q"
         total = self._query(count_sql, params)[0]["n"]
 
-        sql += " ORDER BY r.review_date DESC LIMIT ?"
+        sql += " ORDER BY r.helpful_vote DESC, r.review_date DESC LIMIT ?" if sort == "helpful" else " ORDER BY r.review_date DESC LIMIT ?"
         params_with_limit = params + [limit]
         rows = self._query(sql, params_with_limit)
 
@@ -612,9 +681,9 @@ class ToolBox:
             if not channels:
                 channels = ["new"]
 
-        # The page's contract is "volume" | "rating"; accept "reviews" as an alias for volume.
-        measure = "volume" if measure in ("reviews", None) else measure
-        measure = measure if measure in VALID_MEASURES else "volume"
+        # The page's contract is "volume" | "rating"; rating is the default, "reviews" is an alias for volume.
+        measure = "rating" if measure is None else "volume" if measure == "reviews" else measure
+        measure = measure if measure in VALID_MEASURES else "rating"
 
         view = {
             "product_id": product_id,
@@ -670,39 +739,52 @@ TOOL_SCHEMAS: list[dict] = [
         },
     },
     {
-        "name": "get_product_events",
+        "name": "get_product_complaints",
         "description": (
-            "Get the event tests run against a product (sibling launches, refurbished units "
-            "appearing, low-rating months): verdict, estimated effect and range, and why."
+            "What owners of one product complain about: share of 1 and 2-star reviews mentioning each complaint theme, "
+            "compared with the SharkNinja average and the peer-brand average for its product type; the most common "
+            "complaint by year; rating in year 1 vs years 3 to 4 of the product's life; and refurbished vs new "
+            "(ratings and arrival problems) when both exist. Use for any question about a product's problems."
         ),
         "input_schema": {
             "type": "object",
-            "properties": {
-                "product_id": {"type": "string", "description": "The product_id."},
-            },
+            "properties": {"product_id": {"type": "string", "description": "The product_id, e.g. from find_products."}},
             "required": ["product_id"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "compare_product_type",
+        "description": (
+            "Compare SharkNinja with peer brands (Bissell, Dyson, iRobot, Keurig, Instant Pot) within one product "
+            "type: top complaints, largest complaint gaps, rating change over product life, and stated time to "
+            "failure. Use for 'how do Shark uprights compare with peers' or 'when do Ninja blenders stop working' "
+            "questions; types the peers do not sell return SharkNinja figures only."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"type": {"type": "string", "description": "Product type, e.g. 'upright vacuum', 'coffee maker'."}},
+            "required": ["type"],
             "additionalProperties": False,
         },
     },
     {
         "name": "rank_products",
         "description": (
-            "Rank products by a metric: total new reviews, total renewed (refurbished) reviews, "
-            "refurbished share, average new-channel rating, or review growth between the first "
-            "and second half of a window. Use this for 'top/most/which products' questions."
+            "Rank SharkNinja products (units, not accessories) by: new-unit reviews, average rating, share of 1 and "
+            "2-star reviews, share of low-star reviews mentioning one complaint theme (set 'theme'), rating change "
+            "from year 1 to years 3 to 4 (largest fall first), or refurbished share. Use for 'which product has the "
+            "most ...' questions."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "metric": {
-                    "type": "string",
-                    "enum": ["reviews_new", "reviews_renewed", "refurbished_share", "avg_rating_new", "growth"],
-                },
-                "type": {"type": "string", "description": "Optional exact product_type filter."},
-                "family": {"type": "string", "description": "Optional exact family code filter."},
-                "from": {"type": "string", "description": "Window start month, YYYY-MM. Used only for the 'growth' metric."},
-                "to": {"type": "string", "description": "Window end month, YYYY-MM. Used only for the 'growth' metric."},
-                "min_reviews": {"type": "integer", "description": "Minimum total reviews to qualify. Default 50."},
+                "metric": {"type": "string", "enum": ["reviews_new", "avg_rating_new", "low_star_share", "complaint_share",
+                                                       "rating_change", "refurbished_share"]},
+                "type": {"type": "string", "description": "Optional product type filter; 'vacuum' covers every vacuum type."},
+                "family": {"type": "string", "description": "Optional model family prefix, e.g. 'NV', 'BL'."},
+                "theme": {"type": "string", "description": "Complaint theme for metric 'complaint_share', e.g. 'app', 'leaks', 'brush roll'."},
+                "min_reviews": {"type": "integer", "description": "Minimum new-unit reviews to qualify. Default 100."},
                 "limit": {"type": "integer", "description": "Max results, 1-10."},
             },
             "required": ["metric"],
@@ -712,30 +794,24 @@ TOOL_SCHEMAS: list[dict] = [
     {
         "name": "find_cases",
         "description": (
-            "Find real historical cases worth inspecting: the tested events with the largest change versus similar "
-            "products. Cannibalisation = event_type 'sibling_launch' with direction 'down'. Use for 'find me cases/"
-            "examples of ...' questions. Optional product type or family filter."
+            "Find products whose share of 1 and 2-star reviews jumped in one year, beyond the peer brands' change that "
+            "year, with the complaints that rose. Use for 'find cases/examples of quality problems' questions."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "event_type": {"type": "string", "enum": ["sibling_launch", "refurbished", "low_rating"]},
-                "direction": {"type": "string", "enum": ["down", "up"], "description": "Largest drops or largest rises. Default 'down'."},
-                "type": {"type": "string", "description": "Optional product type, e.g. 'air fryer', 'stick vacuum'."},
-                "family": {"type": "string", "description": "Optional model family prefix, e.g. 'NV', 'BL'."},
-                "limit": {"type": "integer", "description": "Max cases, 1-10. Default 5."},
+                "type": {"type": "string", "description": "Optional product type filter."},
+                "limit": {"type": "integer", "description": "Max cases, 1-12. Default 5."},
             },
-            "required": ["event_type"],
             "additionalProperties": False,
         },
     },
     {
         "name": "get_findings",
         "description": (
-            "Get the portfolio-level findings: pooled event-study averages (sibling launch, "
-            "refurbished units appearing, low-rating months), per-event verdict counts, the "
-            "false-discovery result, and the standing limits of this dataset. Call this for "
-            "'what did you find overall' or 'what can't you answer' questions."
+            "Get the headline findings (ratings over product life vs peers, low-star trend vs peers, stated time to "
+            "failure, refurbished vs new) and the standing limits of the data. Call for 'what did you find' or "
+            "'what can't you answer' questions."
         ),
         "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
@@ -757,6 +833,8 @@ TOOL_SCHEMAS: list[dict] = [
                 "min_rating": {"type": "integer", "description": "Lowest star rating to include, 1-5."},
                 "max_rating": {"type": "integer", "description": "Highest star rating to include, 1-5."},
                 "contains": {"type": "string", "description": "Substring to search for in the review text or title."},
+                "theme": {"type": "string", "description": "Optional complaint theme, e.g. 'leaks', 'app', 'missing parts'."},
+                "sort": {"type": "string", "enum": ["recent", "helpful"], "description": "Most recent (default) or most helpful first."},
                 "limit": {"type": "integer", "description": "Max results, 1-15."},
             },
             "required": ["product_id"],
@@ -781,7 +859,7 @@ TOOL_SCHEMAS: list[dict] = [
                     "items": {"type": "string", "enum": ["new", "renewed"]},
                     "description": "Optional channel list. Defaults to whichever channels the product has.",
                 },
-                "measure": {"type": "string", "enum": ["volume", "rating"], "description": "Optional. 'volume' (review counts) or 'rating'. Default 'volume'."},
+                "measure": {"type": "string", "enum": ["volume", "rating"], "description": "Optional. 'rating' (default) or 'volume' (review counts)."},
             },
             "required": ["product_id"],
             "additionalProperties": False,
@@ -800,7 +878,8 @@ def dispatch(toolbox: ToolBox, name: str, input_: dict) -> Any:
     fn_map: dict[str, Callable[..., Any]] = {
         "find_products": toolbox.find_products,
         "get_product_timeline": toolbox.get_product_timeline,
-        "get_product_events": toolbox.get_product_events,
+        "get_product_complaints": toolbox.get_product_complaints,
+        "compare_product_type": toolbox.compare_product_type,
         "rank_products": toolbox.rank_products,
         "get_findings": toolbox.get_findings,
         "find_cases": toolbox.find_cases,

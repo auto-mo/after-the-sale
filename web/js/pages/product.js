@@ -1,39 +1,21 @@
-import { loadProductDetail, loadPortfolio } from '../data.js?v=202609232353';
-import { renderVolumeChart, renderRatingStrip, renderRatingMainChart, renderVolumeStrip, monthsInRange } from '../charts.js?v=202609232353';
-import { intFmt, decFmt, pctFmt, rangeFmt, monthShort, monthLong, dateShort, monthIndex, humanizeLaunchSource, humanizeType, EMPTY } from '../format.js?v=202609232353';
-import { view, setView, onViewChanged } from '../state.js?v=202609232353';
-import { navigate } from '../router.js?v=202609232353';
+import { loadProductDetail, loadPortfolio } from '../data.js?v=202609240159';
+import {
+  renderVolumeChart, renderRatingStrip, renderRatingMainChart, renderVolumeStrip, monthsInRange,
+  renderCategoryLineChart, renderGroupedBarChart, cssVar,
+} from '../charts.js?v=202609240159';
+import {
+  intFmt, decFmt, monthShort, monthLong, dateShort, monthIndex, humanizeLaunchSource, humanizeType, EMPTY,
+} from '../format.js?v=202609240159';
+import { view, setView, onViewChanged } from '../state.js?v=202609240159';
 
-const EVENT_TYPE_LABEL = {
-  sibling_launch: 'Sibling launch',
-  refurbished: 'Refurbished units appear',
-  low_rating: 'Low-rating month',
-};
+const BAND_ORDER = ['0 to 6 months', '7 to 12 months', 'Year 2', 'Years 3 to 4', 'Year 5+'];
+const ARRIVAL_KEYS = ['missing_parts', 'arrived_damaged_used', 'not_as_described', 'dead_on_arrival'];
 
-function verdictTag({ verdict, effectPct }, { large = false } = {}) {
-  const wrap = document.createElement('span');
-  wrap.className = `verdict-tag${verdict === 'not_enough_data' ? ' verdict-not-enough' : ''}${large ? ' verdict-lg' : ''}`;
-  const punch = document.createElement('span');
-  punch.className = 'verdict-punch';
-  const label = document.createElement('span');
-  label.className = 'verdict-label';
-  if (verdict === 'moved') {
-    label.textContent = effectPct !== null && effectPct !== undefined && effectPct < 0 ? 'Moved down' : 'Moved up';
-  } else if (verdict === 'no_clear_change') {
-    label.textContent = 'No clear change';
-  } else {
-    label.textContent = 'Not enough data';
-  }
-  wrap.appendChild(punch);
-  wrap.appendChild(label);
-  return wrap;
+function themeLabelMap(portfolio) {
+  return new Map(portfolio.themes.map((t) => [t.key, t.label]));
 }
 
-function eventDetailLine(ev) {
-  return `${ev.detail} · ${monthShort(ev.month)}`;
-}
-
-function buildMeta(product, detail) {
+function buildMeta(product) {
   const bits = [];
   bits.push(`model ${product.model || product.id}`);
   if (product.family) bits.push(`family ${product.family}`);
@@ -58,15 +40,42 @@ function computeVolumeTakeaway(months, from, to, channels) {
   return `Reviews peaked at ${intFmt(best.total)} in ${monthLong(best.m)}`;
 }
 
-function computeRatingTakeaway(months, from, to, channels) {
-  const data = monthsInRange(months, from, to);
-  const series = channels.new ? 'rating_new' : 'rating_renewed';
-  const pts = data.filter((r) => r[series] !== null && r[series] !== undefined).map((r) => ({ v: r[series], m: r.m }));
-  if (!pts.length) return 'No rating data in the selected window';
-  const min = pts.reduce((a, b) => (b.v < a.v ? b : a));
-  const max = pts.reduce((a, b) => (b.v > a.v ? b : a));
-  if (min.m === max.m) return `Average rating was ${decFmt(min.v, 2)} in ${monthLong(min.m)}`;
-  return `Rating peaked at ${decFmt(max.v, 2)} in ${monthLong(max.m)}, lowest was ${decFmt(min.v, 2)} in ${monthLong(min.m)}`;
+// Monthly averages from a handful of reviews swing between 1 and 5 and read as signal; plot a month only
+// when it has at least MIN_MONTH_REVIEWS reviews in that channel.
+const MIN_MONTH_REVIEWS = 5;
+function ratingMonths(months) {
+  return months.map((r) => ({
+    ...r,
+    rating_new: (r.new || 0) >= MIN_MONTH_REVIEWS ? r.rating_new : null,
+    rating_renewed: (r.renewed || 0) >= MIN_MONTH_REVIEWS ? r.rating_renewed : null,
+  }));
+}
+
+/** Headline for the rating view: the largest one-year rise in the 1 and 2-star share inside the window
+ * (10+ points, 100+ reviews in both years), otherwise the window's average rating. */
+function computeRatingTakeaway(detail, from, to) {
+  const y0 = Number(from.slice(0, 4));
+  const y1 = Number(to.slice(0, 4));
+  const years = (detail.years || []).filter((y) => y.yr >= y0 && y.yr <= y1);
+  let best = null;
+  for (let i = 1; i < years.length; i += 1) {
+    const a = years[i - 1];
+    const b = years[i];
+    if (b.yr !== a.yr + 1 || a.n < 100 || b.n < 100) continue;
+    const jump = b.low_share - a.low_share;
+    if (jump >= 0.10 && (!best || jump > best.jump)) best = { a, b, jump };
+  }
+  if (best) {
+    return `The share of 1 and 2-star reviews rose from ${decFmt(best.a.low_share * 100, 0)}% in ${best.a.yr} to ${decFmt(best.b.low_share * 100, 0)}% in ${best.b.yr}`;
+  }
+  const data = monthsInRange(detail.months, from, to);
+  let n = 0;
+  let sum = 0;
+  for (const r of data) {
+    if (r.rating_new !== null && r.rating_new !== undefined && r.new) { n += r.new; sum += r.rating_new * r.new; }
+  }
+  if (!n) return 'No new-unit ratings in the selected window';
+  return `New units averaged ${decFmt(sum / n, 2)} stars across ${intFmt(n)} reviews in this window`;
 }
 
 function windowTotals(months, from, to) {
@@ -78,6 +87,296 @@ function windowTotals(months, from, to) {
     renewedTotal += row.renewed || 0;
   }
   return { new: newTotal, renewed: renewedTotal, total: newTotal + renewedTotal };
+}
+
+// ---- "What owners report" rail sections ----
+
+function renderComplaintMix(rail, product, detail, labels) {
+  const section = document.createElement('section');
+  section.className = 'rail-section';
+  const th = detail.themes;
+
+  if (!th || !th.shown) {
+    const h2 = document.createElement('h2');
+    h2.textContent = 'What owners report';
+    section.appendChild(h2);
+    const note = document.createElement('p');
+    note.className = 'rail-intro';
+    note.textContent = 'Fewer than 30 low-star reviews, so no complaint breakdown.';
+    section.appendChild(note);
+    rail.appendChild(section);
+    return;
+  }
+
+  const shares = th.shares;
+  const rows = Object.keys(shares)
+    .filter((k) => k !== 'warranty_service' && shares[k] !== null && shares[k] !== undefined)
+    .sort((a, b) => shares[b] - shares[a])
+    .slice(0, 6);
+
+  const top = rows[0];
+  const topShare = shares[top];
+  const peerShare = th.type_peers ? th.type_peers.shares[top] : null;
+  let headline = 'Owners report a spread of complaints, none dominant';
+  if (top && topShare > 0) {
+    if (peerShare && peerShare > 0) {
+      const ratio = topShare / peerShare;
+      headline = ratio >= 1.3
+        ? `${labels.get(top) || top} leads complaints, ${decFmt(ratio, 1)}x the peer rate`
+        : ratio <= 0.77
+          ? `${labels.get(top) || top} leads complaints, below the peer rate`
+          : `${labels.get(top) || top} leads complaints, close to the peer rate`;
+    } else {
+      headline = `${labels.get(top) || top} leads complaints`;
+    }
+  }
+
+  const h2 = document.createElement('h2');
+  h2.textContent = 'What owners report';
+  section.appendChild(h2);
+  const h3 = document.createElement('h3');
+  h3.textContent = headline;
+  section.appendChild(h3);
+
+  const maxScale = Math.max(0.05, ...rows.map((k) => shares[k] || 0),
+    ...(th.type_sharkninja ? rows.map((k) => th.type_sharkninja.shares[k] || 0) : []),
+    ...(th.type_peers ? rows.map((k) => th.type_peers.shares[k] || 0) : []));
+
+  const bars = document.createElement('div');
+  bars.className = 'complaint-bars';
+  for (const k of rows) {
+    const row = document.createElement('div');
+    row.className = 'complaint-row';
+    const pct = (shares[k] || 0) / maxScale * 100;
+    const snPct = th.type_sharkninja ? (th.type_sharkninja.shares[k] || 0) / maxScale * 100 : null;
+    const peerPct = th.type_peers ? (th.type_peers.shares[k] || 0) / maxScale * 100 : null;
+    row.innerHTML = `
+      <div class="complaint-row-head"><span class="cr-label">${labels.get(k) || k}</span><span class="cr-value mono">${decFmt((shares[k] || 0) * 100, 1)}%</span></div>
+      <div class="complaint-track">
+        <div class="complaint-fill" style="width:${pct}%"></div>
+        ${snPct !== null ? `<div class="complaint-marker sn" style="left:${snPct}%" title="SharkNinja ${humanizeType(product.type)} average"></div>` : ''}
+        ${peerPct !== null ? `<div class="complaint-marker peer" style="left:${peerPct}%" title="Peer average"></div>` : ''}
+      </div>
+    `;
+    bars.appendChild(row);
+  }
+  section.appendChild(bars);
+
+  const legend = document.createElement('div');
+  legend.className = 'complaint-legend';
+  const peerNames = th.type_peers && th.type_peers.brands && th.type_peers.brands.length ? th.type_peers.brands.join(', ') : 'peers';
+  legend.innerHTML = `
+    <span><i style="background:var(--graphite)"></i>${humanizeType(product.type)} product</span>
+    <span><i style="background:var(--steel)"></i>SharkNinja ${humanizeType(product.type)} average</span>
+    <span><i style="background:var(--peer)"></i>${peerNames} average</span>
+  `;
+  section.appendChild(legend);
+  rail.appendChild(section);
+
+  if (th.top && th.top.length) renderThemeQuotes(rail, th.top, labels);
+}
+
+function quoteCard(q) {
+  const card = document.createElement('div');
+  card.className = 'quote-card';
+  const meta = document.createElement('div');
+  meta.className = 'quote-meta';
+  const bits = [dateShort(q.date), `${q.rating}★`];
+  if (q.verified) bits.push('verified');
+  if (q.helpful) bits.push(`${intFmt(q.helpful)} found helpful`);
+  bits.forEach((b) => {
+    const s = document.createElement('span');
+    s.textContent = b;
+    meta.appendChild(s);
+  });
+  card.appendChild(meta);
+  const text = document.createElement('p');
+  text.className = 'quote-text';
+  text.textContent = q.text; // user text: textContent only, never innerHTML
+  card.appendChild(text);
+  return card;
+}
+
+function renderThemeQuotes(rail, top, labels) {
+  const section = document.createElement('section');
+  section.className = 'rail-section';
+  const h3 = document.createElement('h3');
+  h3.textContent = 'In their words';
+  section.appendChild(h3);
+
+  const [first, ...rest] = top;
+  const firstBlock = document.createElement('div');
+  firstBlock.className = 'theme-block';
+  firstBlock.innerHTML = `<div class="theme-block-head"><span>${labels.get(first.theme) || first.theme}</span><span class="tb-share mono">${decFmt(first.share * 100, 1)}%</span></div>`;
+  first.quotes.forEach((q) => firstBlock.appendChild(quoteCard(q)));
+  section.appendChild(firstBlock);
+
+  if (rest.length) {
+    const details = document.createElement('details');
+    details.className = 'theme-quotes-more';
+    const summary = document.createElement('summary');
+    summary.textContent = `${rest.length} more complaint theme${rest.length === 1 ? '' : 's'} with quotes`;
+    details.appendChild(summary);
+    for (const t of rest) {
+      const block = document.createElement('div');
+      block.className = 'theme-block';
+      block.innerHTML = `<div class="theme-block-head"><span>${labels.get(t.theme) || t.theme}</span><span class="tb-share mono">${decFmt(t.share * 100, 1)}%</span></div>`;
+      t.quotes.forEach((q) => block.appendChild(quoteCard(q)));
+      details.appendChild(block);
+    }
+    section.appendChild(details);
+  }
+  rail.appendChild(section);
+}
+
+function renderYearTable(rail, detail, labels) {
+  if (!detail.years || !detail.years.length) return;
+  const section = document.createElement('section');
+  section.className = 'rail-section';
+  const h3 = document.createElement('h3');
+  h3.textContent = 'Year by year';
+  section.appendChild(h3);
+
+  const table = document.createElement('table');
+  table.className = 'year-table';
+  table.innerHTML = '<thead><tr><th>Year</th><th class="num">Reviews</th><th class="num">1 and 2-star share</th><th>Most common complaint</th></tr></thead>';
+  const tbody = document.createElement('tbody');
+  const sorted = [...detail.years].sort((a, b) => a.yr - b.yr);
+  sorted.forEach((y, i) => {
+    const prev = sorted[i - 1];
+    // Same rule as the headline: consecutive years, 100+ reviews in both, a rise of 10 points or more.
+    const rose = prev && prev.yr === y.yr - 1 && prev.n >= 100 && y.n >= 100 && prev.low_share !== null && y.low_share !== null && (y.low_share - prev.low_share) >= 0.10;
+    const tr = document.createElement('tr');
+    if (rose) tr.className = 'year-rise';
+    const yearLabel = y.yr === 2023 ? '2023 (Jan-Mar)' : String(y.yr);
+    const complaint = y.top_theme ? (labels.get(y.top_theme) || y.top_theme) : (y.n_low < 15 ? 'Too few low-star reviews' : EMPTY);
+    tr.innerHTML = `<td class="mono">${yearLabel}</td><td class="mono num">${intFmt(y.n)}</td><td class="mono num">${decFmt(y.low_share * 100, 1)}%</td><td>${complaint}</td>`;
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  section.appendChild(table);
+  rail.appendChild(section);
+}
+
+function renderLifecycle(rail, detail) {
+  if (!detail.lifecycle || !detail.lifecycle.length) return;
+  const section = document.createElement('section');
+  section.className = 'rail-section';
+  const h3 = document.createElement('h3');
+  h3.textContent = "Over the product's life";
+  section.appendChild(h3);
+
+  // Bands with fewer than 30 reviews are left out, the same floor the type averages use.
+  const byBand = new Map(detail.lifecycle.filter((r) => r.n >= 30).map((r) => [r.age_band, r.rating]));
+  const snRef = new Map((detail.lifecycle_ref || []).filter((r) => r.brand_set === 'SharkNinja').map((r) => [r.age_band, r.rating]));
+  const peerRef = new Map((detail.lifecycle_ref || []).filter((r) => r.brand_set === 'Peers').map((r) => [r.age_band, r.rating]));
+  const bands = BAND_ORDER.filter((b) => byBand.has(b) || snRef.has(b) || peerRef.has(b));
+
+  const series = [
+    { label: 'This product', color: cssVar('--graphite'), values: bands.map((b) => byBand.get(b) ?? null) },
+    { label: 'SharkNinja average', color: cssVar('--steel'), values: bands.map((b) => snRef.get(b) ?? null) },
+    { label: 'Peer average', color: cssVar('--peer'), values: bands.map((b) => peerRef.get(b) ?? null) },
+  ];
+  const vals = series.flatMap((x) => x.values).filter((v) => v !== null);
+  const yMin = Math.min(3, Math.floor(Math.min(...vals) * 2) / 2);
+  section.appendChild(renderCategoryLineChart({
+    categories: bands, series, yMin, yMax: 5, yStep: 0.5, width: 900, height: 240,
+    yFmt: (v) => decFmt(v, 1), ariaLabel: 'Average rating by product age',
+  }));
+  const legend = document.createElement('div');
+  legend.className = 'complaint-legend';
+  legend.innerHTML = `
+    <span><i style="background:var(--graphite)"></i>This product</span>
+    <span><i style="background:var(--steel)"></i>SharkNinja average</span>
+    <span><i style="background:var(--peer)"></i>Peer average</span>
+  `;
+  section.appendChild(legend);
+
+  if (detail.drift) {
+    const p = document.createElement('p');
+    p.className = 'lifecycle-note';
+    p.textContent = `Rated ${decFmt(detail.drift.r1, 2)} in year 1 and ${decFmt(detail.drift.r3, 2)} in years 3 to 4.`;
+    section.appendChild(p);
+  }
+  if (detail.launch_source && detail.launch_source.includes('first review')) {
+    const p = document.createElement('p');
+    p.className = 'lifecycle-note';
+    p.textContent = detail.launch_source.includes('earlier than listed')
+      ? 'Product age counts from the first review, which came before the listed first-available date.'
+      : 'Product age counts from the first review, since no listed first-available date exists.';
+    section.appendChild(p);
+  }
+  rail.appendChild(section);
+}
+
+function renderRefurb(rail, detail, portfolio) {
+  if (!detail.refurb) return;
+  const r = detail.refurb;
+  const section = document.createElement('section');
+  section.className = 'rail-section';
+  const h3 = document.createElement('h3');
+  h3.textContent = 'Refurbished';
+  section.appendChild(h3);
+
+  const nc = r.channels.new;
+  const rc = r.channels.refurbished;
+  const summary = document.createElement('div');
+  summary.className = 'refurb-summary';
+  summary.innerHTML = `
+    <div class="stat-tile"><span class="stat-label">New rating</span><span class="stat-value mono">${decFmt(nc.rating, 2)}</span><span class="stat-note">${decFmt(nc.low_share * 100, 1)}% 1 and 2-star (${intFmt(nc.n)} reviews)</span></div>
+    <div class="stat-tile"><span class="stat-label">Refurbished rating</span><span class="stat-value mono">${decFmt(rc.rating, 2)}</span><span class="stat-note">${decFmt(rc.low_share * 100, 1)}% 1 and 2-star (${intFmt(rc.n)} reviews)</span></div>
+  `;
+  section.appendChild(summary);
+
+  if (r.cells && r.cells.length) {
+    const table = document.createElement('table');
+    table.className = 'refurb-cells';
+    table.innerHTML = '<thead><tr><th>Year</th><th>New</th><th>Refurbished</th><th>Gap</th></tr></thead>';
+    const tbody = document.createElement('tbody');
+    for (const c of r.cells) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${c.yr}</td><td class="mono">${decFmt(c.r_new, 2)} (${intFmt(c.n_new)})</td><td class="mono">${decFmt(c.r_ref, 2)} (${intFmt(c.n_ref)})</td><td class="mono">${decFmt(c.gap, 2)}</td>`;
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    const p = document.createElement('p');
+    p.className = 'lifecycle-note';
+    p.textContent = 'Same product, same year: refurbished versus new.';
+    section.appendChild(p);
+    section.appendChild(table);
+  }
+
+  const arrivalNew = ARRIVAL_KEYS.map((k) => nc.shares[k] || 0);
+  const arrivalRef = ARRIVAL_KEYS.map((k) => rc.shares[k] || 0);
+  if (rc.n_low < 30) {
+    const p = document.createElement('p');
+    p.className = 'lifecycle-note';
+    p.textContent = `Only ${intFmt(rc.n_low)} low-star refurbished reviews, too few for an arrival-complaint breakdown.`;
+    section.appendChild(p);
+  } else if (arrivalNew.some((v) => v > 0) || arrivalRef.some((v) => v > 0)) {
+    const p = document.createElement('p');
+    p.className = 'lifecycle-note';
+    p.textContent = 'Arrival complaints, share of low-star reviews:';
+    section.appendChild(p);
+    section.appendChild(renderGroupedBarChart({
+      categories: ARRIVAL_KEYS.map((k) => (portfolio.themes.find((t) => t.key === k) || {}).label || k),
+      series: [
+        { label: 'New', color: cssVar('--graphite'), values: arrivalNew.map((v) => v * 100) },
+        { label: 'Refurbished', color: cssVar('--steel'), values: arrivalRef.map((v) => v * 100) },
+      ],
+      width: 640, height: 220, valueFmt: (v) => `${decFmt(v, 1)}%`, yFmt: (v) => `${intFmt(v)}%`, ariaLabel: 'Arrival complaints, new versus refurbished',
+    }));
+  }
+
+  if (r.quotes && r.quotes.length) {
+    const p = document.createElement('p');
+    p.className = 'lifecycle-note';
+    p.textContent = 'From refurbished-unit reviews:';
+    section.appendChild(p);
+    r.quotes.slice(0, 3).forEach((q) => section.appendChild(quoteCard(q)));
+  }
+
+  rail.appendChild(section);
 }
 
 export async function render(container, params) {
@@ -99,6 +398,7 @@ export async function render(container, params) {
   }
 
   const { product, detail } = result;
+  const labels = themeLabelMap(portfolio);
 
   container.innerHTML = '';
   const layout = document.createElement('div');
@@ -116,7 +416,7 @@ export async function render(container, params) {
   heading.appendChild(h1);
   const meta = document.createElement('div');
   meta.className = 'product-meta';
-  meta.innerHTML = buildMeta(product, detail).map((b) => `<span>${b}</span>`).join('');
+  meta.innerHTML = buildMeta(product).map((b) => `<span>${b}</span>`).join('');
   heading.appendChild(meta);
   main.appendChild(heading);
 
@@ -130,8 +430,6 @@ export async function render(container, params) {
 
   const firstMonth = detail.months[0].m;
   const lastMonth = detail.months[detail.months.length - 1].m;
-  // Default "To" is the last fully-collected month, not the trailing partial
-  // months the data still carries (down to 418 reviews in August 2023).
   const defaultTo = monthIndex(portfolio.complete_through) <= monthIndex(lastMonth) ? portfolio.complete_through : lastMonth;
   if (!view.from || monthIndex(view.from) < monthIndex(firstMonth) || monthIndex(view.from) > monthIndex(lastMonth)) view.from = firstMonth;
   if (!view.to || monthIndex(view.to) < monthIndex(firstMonth) || monthIndex(view.to) > monthIndex(lastMonth)) view.to = defaultTo;
@@ -175,16 +473,16 @@ export async function render(container, params) {
   const switchGroup = document.createElement('div');
   switchGroup.className = 'switch-group';
   switchGroup.innerHTML = `
-    <span id="measure-vol-label" class="switch-label-on">Volume</span>
-    <button type="button" id="measure-switch" class="switch" role="switch" aria-checked="false" aria-labelledby="measure-vol-label measure-rat-label"></button>
-    <span id="measure-rat-label">Rating</span>
+    <span id="measure-rat-label" class="switch-label-on">Rating</span>
+    <button type="button" id="measure-switch" class="switch" role="switch" aria-checked="false" aria-labelledby="measure-rat-label measure-vol-label"></button>
+    <span id="measure-vol-label">Volume</span>
   `;
   switchGroup.querySelector('.switch').innerHTML =
     '<span class="switch-knob"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg></span>';
   controls.appendChild(switchGroup);
   const measureSwitch = switchGroup.querySelector('#measure-switch');
-  const volLabel = switchGroup.querySelector('#measure-vol-label');
   const ratLabel = switchGroup.querySelector('#measure-rat-label');
+  const volLabel = switchGroup.querySelector('#measure-vol-label');
 
   // ---- chart card ----
   const chartCard = document.createElement('div');
@@ -221,21 +519,12 @@ export async function render(container, params) {
   const secondaryChartHolder = document.createElement('div');
   chartCard.appendChild(secondaryChartHolder);
 
-  function eventMarkersFor(chartFrom, chartTo) {
-    return detail.events
-      .filter((e) => monthIndex(e.month) >= monthIndex(chartFrom) && monthIndex(e.month) <= monthIndex(chartTo))
-      // Only tested events are marked, matching the rail; untested ones would crowd the chart without adding insight.
-      .filter((e) => e.verdict !== 'not_enough_data')
-      .map((e) => ({ month: e.month, type: e.type, detail: e.detail }));
-  }
-
   function updateLegend(channels, totals) {
     const isRating = view.measure === 'rating';
-    subjectLine.textContent = isRating ? 'Average star rating per month.' : 'Written Amazon reviews per month.';
+    subjectLine.textContent = isRating ? 'Average star rating per month (months with at least 5 reviews in that channel).' : 'Written Amazon reviews per month.';
     legend.innerHTML = `
       <span class="legend-swatch"><span class="legend-dot" style="background:var(--graphite)"></span>New units (${intFmt(totals.new)})</span>
       <span class="legend-swatch"><span class="legend-dot" style="background:var(--steel)"></span>Refurbished (${intFmt(totals.renewed)})</span>
-      <span class="legend-swatch"><span class="legend-dash"></span>Event</span>
     `;
     const refurbShare = totals.total > 0 ? totals.renewed / totals.total : 0;
     if (totals.renewed > 0 && refurbShare < 0.02) {
@@ -252,20 +541,19 @@ export async function render(container, params) {
     const totals = windowTotals(detail.months, view.from, view.to);
     updateLegend(channels, totals);
     chartTitle.textContent = isRating
-      ? computeRatingTakeaway(detail.months, view.from, view.to, channels)
+      ? computeRatingTakeaway(detail, view.from, view.to)
       : computeVolumeTakeaway(detail.months, view.from, view.to, channels);
 
     mainChartHolder.innerHTML = '';
-    const events = eventMarkersFor(view.from, view.to);
     if (isRating) {
       mainChartHolder.appendChild(renderRatingMainChart({
-        months: detail.months, from: view.from, to: view.to, channels,
-        completeThrough: portfolio.complete_through, events, width: 980, height: 300,
+        months: ratingMonths(detail.months), from: view.from, to: view.to, channels,
+        completeThrough: portfolio.complete_through, events: [], width: 980, height: 300,
       }));
     } else {
       mainChartHolder.appendChild(renderVolumeChart({
         months: detail.months, from: view.from, to: view.to, channels,
-        completeThrough: portfolio.complete_through, events, width: 980, height: 300,
+        completeThrough: portfolio.complete_through, events: [], width: 980, height: 300,
       }));
     }
 
@@ -290,11 +578,11 @@ export async function render(container, params) {
     fromSel.value = view.from;
     toSel.value = view.to;
     const isRating = view.measure === 'rating';
-    measureSwitch.setAttribute('aria-checked', String(isRating));
-    volLabel.classList.toggle('switch-label-on', !isRating);
-    volLabel.classList.toggle('switch-label-off', isRating);
+    measureSwitch.setAttribute('aria-checked', String(!isRating));
     ratLabel.classList.toggle('switch-label-on', isRating);
     ratLabel.classList.toggle('switch-label-off', !isRating);
+    volLabel.classList.toggle('switch-label-on', !isRating);
+    volLabel.classList.toggle('switch-label-off', isRating);
     redrawCharts();
   }
 
@@ -326,113 +614,29 @@ export async function render(container, params) {
   });
   syncControlsFromView();
 
-  // ---- right rail ----
+  // ---- right rail: "What owners report" ----
   const rail = document.createElement('aside');
   rail.className = 'product-rail';
   layout.appendChild(rail);
 
-  const railTitle = document.createElement('h2');
-  railTitle.textContent = `What moved ${product.model || product.id}`;
-  rail.appendChild(railTitle);
-  const railIntro = document.createElement('p');
-  railIntro.className = 'rail-intro';
-  railIntro.textContent = 'Events detected on this product, each tested against similar products that had no such event.';
-  rail.appendChild(railIntro);
-
-  if (!detail.events.length) {
-    const none = document.createElement('p');
-    none.className = 'rail-intro';
-    none.textContent = 'No events were detected for this product.';
-    rail.appendChild(none);
+  if (!detail.themes && !detail.lifecycle) {
+    const h2 = document.createElement('h2');
+    h2.textContent = 'What owners report';
+    rail.appendChild(h2);
+    const note = document.createElement('p');
+    note.className = 'rail-intro';
+    note.textContent = 'Complaint analysis covers units only; this listing has too few new-unit reviews for a breakdown.';
+    rail.appendChild(note);
+  } else {
+    renderComplaintMix(rail, product, detail, labels);
+    // The longer tables and charts sit under the timeline, where the main column has room for them.
+    const below = document.createElement('div');
+    below.className = 'product-below';
+    main.appendChild(below);
+    renderYearTable(below, detail, labels);
+    renderLifecycle(below, detail);
+    renderRefurb(below, detail, portfolio);
   }
-
-  // Tested events first (moved, then no clear change), each group in date order; untested ones go in a
-  // collapsed group underneath, since they carry no insight on their own.
-  const RANK = { moved: 0, no_clear_change: 1, not_enough_data: 2 };
-  const ordered = [...detail.events].sort((a, b) => (RANK[a.verdict] ?? 3) - (RANK[b.verdict] ?? 3) || String(a.month).localeCompare(String(b.month)));
-  const tested = ordered.filter((e) => e.verdict !== 'not_enough_data');
-  const untested = ordered.filter((e) => e.verdict === 'not_enough_data');
-  if (detail.events.length && !tested.length) {
-    const noneTested = document.createElement('p');
-    noneTested.className = 'rail-intro';
-    noneTested.textContent = 'None of this product\'s events had enough data to test.';
-    rail.appendChild(noneTested);
-  }
-  let target = rail;
-  const renderEvent = (ev) => {
-    const item = document.createElement('div');
-    item.className = 'event-item';
-    const head = document.createElement('div');
-    head.className = 'event-head';
-    const t = document.createElement('span');
-    t.className = 'event-title';
-    t.textContent = EVENT_TYPE_LABEL[ev.type] || ev.type;
-    head.appendChild(t);
-    head.appendChild(verdictTag({ verdict: ev.verdict, effectPct: ev.effect_pct }));
-    item.appendChild(head);
-
-    const sub = document.createElement('span');
-    sub.className = 'event-sub';
-    sub.textContent = eventDetailLine(ev);
-    item.appendChild(sub);
-
-    const changeRow = document.createElement('div');
-    changeRow.className = 'event-change-row';
-    const changeLabel = document.createElement('span');
-    changeLabel.textContent = 'Change vs comparison';
-    const changeVal = document.createElement('span');
-    changeVal.className = 'mono';
-    changeVal.textContent = ev.effect_pct !== null && ev.effect_pct !== undefined ? pctFmt(ev.effect_pct) : EMPTY;
-    changeRow.appendChild(changeLabel);
-    changeRow.appendChild(changeVal);
-    item.appendChild(changeRow);
-    if (ev.effect_pct !== null && ev.effect_pct !== undefined) {
-      const rangeLine = document.createElement('div');
-      rangeLine.className = 'event-change-range mono';
-      rangeLine.textContent = rangeFmt(ev.lo_pct, ev.hi_pct);
-      item.appendChild(rangeLine);
-    }
-
-    if (ev.reason) {
-      const reason = document.createElement('span');
-      reason.className = 'event-reason';
-      reason.textContent = ev.reason;
-      item.appendChild(reason);
-    }
-
-    const link = document.createElement('a');
-    link.className = 'event-link';
-    link.href = `#/event/${product.id}/${ev.id}`;
-    link.textContent = 'Open the evidence';
-    item.appendChild(link);
-
-    target.appendChild(item);
-  };
-  tested.forEach(renderEvent);
-  if (untested.length) {
-    const group = document.createElement('details');
-    group.className = 'untested-group';
-    const sum = document.createElement('summary');
-    sum.textContent = `${untested.length} event${untested.length === 1 ? '' : 's'} without enough data to test`;
-    group.appendChild(sum);
-    rail.appendChild(group);
-    target = group;
-    untested.forEach(renderEvent);
-    target = rail;
-  }
-
-  const notTestable = document.createElement('div');
-  notTestable.className = 'not-testable';
-  notTestable.innerHTML = `
-    <span class="not-testable-title">Not testable with free data</span>
-    <span class="honest-note">Price changes, stock-outs, sales rank and buy box need price and seller history.</span>
-  `;
-  rail.appendChild(notTestable);
-
-  const honest = document.createElement('p');
-  honest.className = 'honest-note';
-  honest.textContent = `Across all ${intFmt(portfolio.stats.events_tested)} testable events, none shows a change beyond what chance produces. See Findings for the averages that do hold.`;
-  rail.appendChild(honest);
 
   const disclosure = document.createElement('details');
   disclosure.className = 'listings-disclosure';

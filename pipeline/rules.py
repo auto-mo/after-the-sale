@@ -154,11 +154,12 @@ TITLE_TYPE = [
     (r"handheld|\bhand vac", "vacuum-handheld"),
     (r"upright|navigator|rotator|lift-?away|canister", "vacuum-upright/canister"),
     (r"steam (pocket )?mop|steam cleaner", "steam mop"),
+    # coffee before blender: Ninja coffee bars also carry the "Auto-iQ" name
+    (r"coffee|espresso", "coffee maker"),
     (r"blender|nutri ninja|auto-?iq|kitchen system|blend", "blender"),
     (r"food processor|chop|master prep|food & drink maker", "food processor"),
     (r"cooking system|multi ?cooker", "multicooker"),
     (r"mixer", "mixer"),
-    (r"coffee|espresso", "coffee maker"),
     (r"pressure cook|slow cook|foodi|possible ?cooker", "multicooker"),
     (r"grill", "indoor grill"),
     (r"oven|toaster", "countertop oven"),

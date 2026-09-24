@@ -81,6 +81,13 @@ export function navigate(path) {
   window.location.hash = `#${path}`;
 }
 
+/** Re-run the current route's render without changing the URL. Used after a
+ * theme switch so chart colors (read from CSS custom properties at draw
+ * time) pick up the new palette immediately. */
+export function rerenderCurrent() {
+  if (pageRoot) renderCurrent();
+}
+
 export function initRouter({ root, navSelector }) {
   pageRoot = root;
   navLinks = [...document.querySelectorAll(navSelector)];

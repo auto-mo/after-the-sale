@@ -43,16 +43,20 @@ def test_house_style_removes_em_dashes():
     assert "—" not in _house_style("review counts — ratings—and text")
 
 
-def test_find_cases_cannibalisation(toolbox):
-    r = dispatch(toolbox, "find_cases", {"event_type": "sibling_launch", "direction": "down", "limit": 3})
+def test_find_cases_quality_jumps(toolbox):
+    r = dispatch(toolbox, "find_cases", {"limit": 3})
     assert r["count"] == 3
-    vals = [c["change_vs_comparison_pct"] for c in r["cases"]]
-    assert vals == sorted(vals) and vals[0] < 0
-    assert all(c["plain_summary"] for c in r["cases"]) and "never as a proven effect" in r["how_to_read"]
+    for c in r["cases"]:
+        assert c["low_star_share_after"] > c["low_star_share_before"] and c["to_year"] == c["from_year"] + 1
+    assert "cannot say why" in r["how_to_read"]
 
 
-def test_find_cases_filters_and_validation(toolbox):
-    r = dispatch(toolbox, "find_cases", {"event_type": "refurbished", "direction": "up", "type": "stick vacuums"})
-    assert all(c["product_type"] == "vacuum-stick" for c in r["cases"])
-    with pytest.raises(ToolError):
-        dispatch(toolbox, "find_cases", {"event_type": "price_change"})
+def test_find_cases_type_filter(toolbox):
+    r = dispatch(toolbox, "find_cases", {"type": "steam mops"})
+    assert r["cases"] and all(c["product_type"] == "steam mop" for c in r["cases"])
+
+
+def test_generic_vacuum_ranks_across_vacuum_types(toolbox):
+    r = dispatch(toolbox, "rank_products", {"metric": "refurbished_share", "type": "vacuums", "limit": 10})
+    assert r["results"] and all(x["product_type"].startswith("vacuum-") for x in r["results"])
+    assert len({x["product_type"] for x in r["results"]}) > 1

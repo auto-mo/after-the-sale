@@ -1,4 +1,4 @@
-"""Flask app for the Demand Evidence chat service.
+"""Flask app for the After the Sale chat service.
 
 GET  /api/health  -> {ok, mode, model, budget_left_usd}
 POST /api/chat     -> {reply, view, tools, limited, paused, message}
@@ -28,7 +28,7 @@ MAX_BODY_BYTES = 32 * 1024
 TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
-logger = logging.getLogger("demand_evidence")
+logger = logging.getLogger("after_the_sale")
 
 
 def verify_turnstile(token: str | None, secret: str, remote_ip: str | None = None) -> bool:

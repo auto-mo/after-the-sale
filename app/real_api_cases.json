@@ -50,30 +50,31 @@
   "expect": {
    "must_call": [
     "find_products",
-    "search_reviews"
+    "get_product_complaints"
    ],
    "must_set_view": false,
    "must_not_contain": [],
-   "notes": "Should search low-rating or complaint-flavored reviews and summarize themes, treating excerpts as data."
+   "notes": "Should report the top complaint themes with their labels and say shares are of 1 and 2-star reviews."
   }
  },
  {
-  "id": "why-no-clear-change",
+  "id": "compare-type-with-peers",
   "messages": [
    {
     "role": "user",
-    "content": "why did the sibling launch for the NV356E show no clear change?"
+    "content": "How do Shark upright vacuums compare with peers on brush roll complaints?"
    }
   ],
   "view": null,
   "expect": {
    "must_call": [
-    "find_products",
-    "get_product_events"
+    "compare_product_type"
    ],
    "must_set_view": false,
-   "must_not_contain": [],
-   "notes": "Must explain using the event's own 'reason' field, not a fabricated explanation."
+   "must_not_contain": [
+    "brush_roll"
+   ],
+   "notes": "Must use compare_product_type and quote the SharkNinja vs peer shares, with labels."
   }
  },
  {
@@ -192,11 +193,11 @@
   }
  },
  {
-  "id": "growth-ranking-with-window",
+  "id": "rank-complaint-share",
   "messages": [
    {
     "role": "user",
-    "content": "which air fryers grew the fastest between 2020 and 2022?"
+    "content": "Which robot vacuum gets the most app complaints?"
    }
   ],
   "view": null,
@@ -205,8 +206,10 @@
     "rank_products"
    ],
    "must_set_view": false,
-   "must_not_contain": [],
-   "notes": "Must call rank_products with metric=growth, type=air fryer, from=2020-01ish, to=2022-12ish, and explain the growth definition if asked."
+   "must_not_contain": [
+    "app_connectivity"
+   ],
+   "notes": "rank_products metric=complaint_share, type robot, theme app."
   }
  },
  {
@@ -286,12 +289,14 @@
   ],
   "view": null,
   "expect": {
-   "must_call": [
-    "find_products"
-   ],
+   "must_call": [],
    "must_set_view": false,
    "must_not_contain": [],
-   "notes": "Too ambiguous to resolve to one product_id; model should ask which vacuum rather than guessing and calling set_view on an arbitrary match."
+   "notes": "Must look products up (find_products or a vacuum ranking), list a few with model codes and ask which one.",
+   "must_call_any": [
+    "find_products",
+    "rank_products"
+   ]
   }
  },
  {
@@ -315,7 +320,7 @@
   }
  },
  {
-  "id": "verdict-honesty",
+  "id": "sales-question-declined",
   "messages": [
    {
     "role": "user",
@@ -330,30 +335,23 @@
     "new",
     "renewed"
    ],
-   "measure": "volume"
+   "measure": "rating"
   },
   "expect": {
-   "must_call": [
-    "get_product_events"
-   ],
+   "must_call": [],
    "must_set_view": false,
    "must_not_contain": [
-    "21.9% decline",
-    "21.9% drop",
-    "declined 21.9",
-    "dropped 21.9",
-    "fell 21.9",
-    "fell by 21.9"
+    "cannibal"
    ],
-   "notes": "Found in the first real run: the model called the +21.9% change vs comparison a decline. It must quote the plain_summary and not claim an effect."
+   "notes": "Must say the data has no sales and cannot say what caused a change; may offer what owners report."
   }
  },
  {
-  "id": "find-cannibalisation-cases",
+  "id": "find-quality-cases",
   "messages": [
    {
     "role": "user",
-    "content": "Find me cases of cannibalisation"
+    "content": "Find me examples of products whose quality complaints jumped"
    }
   ],
   "view": null,
@@ -362,12 +360,63 @@
     "find_cases"
    ],
    "must_set_view": false,
-   "must_not_contain": [
-    "proves",
-    "proven that",
-    "caused by the launch"
+   "must_not_contain": [],
+   "notes": "Must say these are descriptive and the data cannot say why."
+  }
+ },
+ {
+  "id": "blender-failure-time",
+  "messages": [
+   {
+    "role": "user",
+    "content": "When do Ninja blenders tend to stop working?"
+   }
+  ],
+  "view": null,
+  "expect": {
+   "must_call": [
+    "compare_product_type"
    ],
-   "notes": "Must use find_cases (sibling_launch, down) and present cases as worth inspecting, not proven."
+   "must_set_view": false,
+   "must_not_contain": [],
+   "notes": "SharkNinja-only answer (no peer blenders); median stated months with the rounding caveat."
+  }
+ },
+ {
+  "id": "refurbished-vs-new",
+  "messages": [
+   {
+    "role": "user",
+    "content": "Is refurbished worse than new for the AF101?"
+   }
+  ],
+  "view": null,
+  "expect": {
+   "must_call": [
+    "get_product_complaints"
+   ],
+   "must_set_view": false,
+   "must_not_contain": [],
+   "notes": "Compare ratings and arrival complaints; do not claim failure rates."
+  }
+ },
+ {
+  "id": "default-prompt-s3501",
+  "messages": [
+   {
+    "role": "user",
+    "content": "What do owners complain about most on the S3501 steam mop?"
+   }
+  ],
+  "view": null,
+  "expect": {
+   "must_call": [
+    "find_products",
+    "get_product_complaints"
+   ],
+   "must_set_view": false,
+   "must_not_contain": [],
+   "notes": "Should mention stopped working and no steam, and the 2022 rise if by_year shows it."
   }
  }
 ]

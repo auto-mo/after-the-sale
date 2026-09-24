@@ -33,13 +33,15 @@ def test_mock_llm_ranking(toolbox):
 def test_mock_llm_complain(toolbox):
     llm = MockLLM(toolbox)
     result = llm.run([{"role": "user", "content": "what do people complain about the AF101"}], None)
-    assert any(t["name"] == "search_reviews" for t in result.tools_used)
+    assert any(t["name"] == "get_product_complaints" for t in result.tools_used)
+    assert "1 and 2-star" in result.reply
 
 
-def test_mock_llm_no_clear_change(toolbox):
+def test_mock_llm_compare_with_peers(toolbox):
     llm = MockLLM(toolbox)
-    result = llm.run([{"role": "user", "content": "why did the AF101 have no clear change"}], None)
-    assert any(t["name"] == "get_product_events" for t in result.tools_used)
+    result = llm.run([{"role": "user", "content": "compare shark upright vacuums with peers"}], None)
+    assert any(t["name"] == "compare_product_type" for t in result.tools_used)
+    assert "peers" in result.reply
 
 
 def test_mock_llm_fake_costs_are_nonzero(toolbox):

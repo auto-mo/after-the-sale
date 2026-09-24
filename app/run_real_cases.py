@@ -11,6 +11,7 @@ that build. The owner runs this later, once a key is supplied, e.g.:
 It loads each case's conversation, runs it through AnthropicLLM (the same manual tool
 loop the live server uses), and mechanically checks:
   - must_call: every named tool appears in the tools actually used.
+  - must_call_any: at least one of the named tools appears (for cases with more than one sound approach).
   - must_set_view: whether a view was set matches the expectation.
   - must_not_contain: none of the given substrings (case-insensitive) appear in the reply.
 
@@ -40,6 +41,9 @@ def check_case(case: dict, reply: str, tools_used: list[dict], view: dict | None
     for name in expect.get("must_call", []):
         if name not in called_names:
             problems.append(f"expected tool {name!r} to be called; got {sorted(called_names)}")
+    any_of = expect.get("must_call_any")
+    if any_of and not called_names & set(any_of):
+        problems.append(f"expected one of {any_of} to be called; got {sorted(called_names)}")
 
     must_set_view = expect.get("must_set_view")
     if must_set_view is not None:

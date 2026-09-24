@@ -1,28 +1,20 @@
 // Intro carousel: a centered modal shown before the pointing tour, on first
 // visit only (same localStorage flag as the tour; `?notour` skips both).
 
-import { isTourDone, markTourDone } from './state.js?v=202609232353';
+import { isTourDone, markTourDone } from './state.js?v=202609240159';
 
 const CARDS = [
   {
-    title: 'What this is',
-    body: "Demand Evidence looks at what moved a Shark or Ninja product's demand on Amazon, and what did not.",
+    title: 'What the data is',
+    body: 'Amazon Reviews 2023, a public research dataset from the McAuley Lab at UC San Diego: written reviews for Shark and Ninja products, plus five peer brands, Bissell, Dyson, iRobot, Keurig and Instant Pot.',
   },
   {
-    title: 'The data',
-    body: 'Written Amazon reviews and star ratings from 2002 to March 2023: about 290,000 reviews across 1,138 products. Review volume stands in for demand.',
+    title: 'What this tool shows',
+    body: 'What owners complain about, when they say a product stopped working, how ratings change over a product’s life, and how refurbished units compare with new.',
   },
   {
-    title: 'Where it comes from',
-    body: 'Amazon Reviews 2023, a public research dataset from the McAuley Lab at UC San Diego. It has no sales, price, stock or seller data.',
-  },
-  {
-    title: 'What it can show',
-    body: "How a product's reviews and ratings moved around three kinds of event: a sibling model launching, refurbished units appearing, and a month of low ratings. Also the patterns that hold across hundreds of events, and real cases worth a closer look.",
-  },
-  {
-    title: 'What it cannot',
-    body: 'Why something happened. Results show what moved together, and a single event is usually too noisy to call on its own.',
+    title: 'What it cannot show',
+    body: 'Sales, returns or failure rates, and it cannot say why owners complain, only what they report and how often.',
   },
 ];
 
@@ -72,7 +64,7 @@ function render() {
       <div class="tour-actions">
         <button type="button" id="car-skip" class="btn btn-ghost">Skip</button>
         ${index > 0 ? '<button type="button" id="car-back" class="btn btn-ghost">Back</button>' : ''}
-        <button type="button" id="car-next" class="btn btn-primary">${isLast ? 'Start the tour' : 'Next'}</button>
+        <button type="button" id="car-next" class="btn btn-primary">${isLast ? 'Take the tour' : 'Next'}</button>
       </div>
     </div>
   `;

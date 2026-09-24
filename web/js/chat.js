@@ -1,7 +1,7 @@
-import { findProduct } from './data.js?v=202609232353';
-import { getView, setView, getPreviousView } from './state.js?v=202609232353';
-import { navigate } from './router.js?v=202609232353';
-import { monthShort } from './format.js?v=202609232353';
+import { findProduct } from './data.js?v=202609240159';
+import { getView, setView, getPreviousView } from './state.js?v=202609240159';
+import { navigate } from './router.js?v=202609240159';
+import { monthShort } from './format.js?v=202609240159';
 
 const MAX_LEN = 1000;
 let messages = [];
@@ -10,13 +10,6 @@ let offline = false;
 let lastFocused = null;
 
 let root, overlay, drawer, body, input, counter, sendBtn, suggestionsEl, offlineNote;
-
-function currentRouteInfo() {
-  const hash = (window.location.hash || '#/').slice(1);
-  const parts = hash.split('/').filter(Boolean);
-  if (parts[0] === 'product' && parts[1]) return { onProduct: true, productId: parts[1] };
-  return { onProduct: false, productId: null };
-}
 
 // Model replies may use light markdown (**bold**, "- " or "1. " lists, "#" headings). Render it with DOM text
 // nodes only (never innerHTML), so nothing in a reply can inject markup.
@@ -202,31 +195,16 @@ function updateCounter() {
 
 function buildSuggestions() {
   suggestionsEl.innerHTML = '';
-  const { onProduct, productId } = currentRouteInfo();
-  const chips = [];
-  if (onProduct) {
-    findProduct(productId).then((product) => {
-      const name = (product && (product.model || product.id)) || productId;
-      const productChips = [
-        `Show ${name} from Jan 2019 to Dec 2020, new units only`,
-        `What did buyers complain about in ${name}'s low-rating months?`,
-        `How do refurbished reviews of ${name} differ from new ones?`,
-        `Why is this verdict "No clear change"?`,
-      ];
-      renderChips([...productChips, ...everywhereChips()]);
-    }).catch(() => renderChips(everywhereChips()));
-  } else {
-    renderChips(everywhereChips());
-  }
+  renderChips(everywhereChips());
 }
 
 function everywhereChips() {
   return [
-    'Which air fryers have the most refurbished reviews?',
-    'Which product families grew most in 2021?',
-    'Find cases of cannibalisation',
-    'Which products dropped most after refurbished units appeared?',
-    "What can't this tool tell me?",
+    'What do owners complain about most on the S3501 steam mop?',
+    'Which robot vacuum gets the most app complaints?',
+    'How do Shark uprights compare with peers on brush roll complaints?',
+    'When do Ninja blenders tend to stop working?',
+    'Is refurbished worse than new for the AF101?',
   ];
 }
 

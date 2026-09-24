@@ -251,3 +251,48 @@ second, cross-retailer time series. Cost: a multi-GB stream on the Mac only.
    diagnosis. Is Phase 3 onward (building clean tables) OK to run now, or wait for the weekend?
 2. "What moved what": is review velocity and rating the right outcome to explain, given there is
    no sales or price history?
+
+---
+
+## Reframe: "After the Sale" (owner decision 2026-09-23)
+
+**Why:** the "demand evidence" framing leans on a proxy that is validated only across products, never over time, and
+0 of 819 events are detectable. An independent review (`docs/REVIEW_FABLE.md`, headline numbers re-derived in
+BUILD_LOG) found that the data is strong at a different job: post-purchase quality insight.
+
+**The question:** for each Shark and Ninja product on Amazon, what do owners complain about, how soon after purchase,
+how does satisfaction change over the product's life, and is refurbished a product problem or a delivery problem?
+**For:** a product-quality or consumer-insights analyst (primary), a Renewed channel manager (secondary).
+
+**Decisions (owner, 2026-09-23):** reframe; event tests go to a Method appendix; add a comparator brand set
+(Bissell, Dyson, iRobot, Keurig, Instant Pot) so rating-decline and complaint findings are relative to peers;
+name "After the Sale", URL `/after-the-sale/`.
+
+### Phases
+- **R1 Comparator extract. DONE.** `scripts/extract_comparators.py` streams the public files and keeps those five brands'
+  brand-store listings and reviews. Mac only. Comparators stay at listing level (no entity resolution); product type
+  from the same title rules.
+- **R2 Complaint themes. DONE.** `pipeline/themes.py`: deterministic keyword tagger over all reviews (SharkNinja and
+  comparators), failure-time parser in coarse bands. Precision per theme measured on a blind-labelled sample in
+  `eval/`, stated on the page like the matcher's.
+- **R3 Life cycle, refurbished, cases. DONE.** `pipeline/lifecycle.py`: rating and low-star share by product-age band
+  (with calendar-year adjustment), SharkNinja vs comparators by type; refurbished gap within product and year plus
+  delivery complaints; case studies = largest year-over-year low-star jumps on one listing.
+- **R4 Export and front end. BUILT (2026-09-23).** Product page: rating as default series, complaint mix with quotes, life-cycle curve
+  vs type, refurbished panel, low-rating months open "what changed in the text". Findings: the verified insights, each
+  with its caveat. Portfolio: quality columns, no growth headline. Method: event tests become "tested, not
+  detectable". New copy, carousel, tour.
+- **R5 Assistant. BUILT (2026-09-23).** Tools rewritten to the new tables, new real-model cases.
+- **R6 Deploy and rename.** New path on Jarvis, old URL redirects, Work entry, apps card, GitHub repo rename
+  (owner approves each outbound step).
+
+### Not in scope
+Demand claims of any kind; price, colour, discontinued, sales-rank-driver analyses (no signal); an LLM in the
+pipeline; entity resolution for comparators.
+
+### Risks
+- Theme shares are shares of self-selected complaints, not failure rates; the page must say so.
+- Keyword tagger precision is uneven (navigation read 4 of 12); weak themes are dropped, not shown.
+- Launch date is a proxy (first review) for ~45% of products; label life-cycle curves accordingly.
+- Comparator store names may be inconsistent (e.g. "Instant" vs "Instant Pot"); check counts before use.
+- Rename breaks old links: keep a redirect from `/demand-evidence/`.

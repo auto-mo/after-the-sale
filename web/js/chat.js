@@ -1,7 +1,7 @@
-import { findProduct } from './data.js?v=202609241634';
-import { getView, setView, getPreviousView } from './state.js?v=202609241634';
-import { navigate } from './router.js?v=202609241634';
-import { monthShort } from './format.js?v=202609241634';
+import { findProduct } from './data.js?v=202609241638';
+import { getView, setView, getPreviousView } from './state.js?v=202609241638';
+import { navigate } from './router.js?v=202609241638';
+import { monthShort } from './format.js?v=202609241638';
 
 const MAX_LEN = 1000;
 let messages = [];
@@ -259,7 +259,10 @@ export function initChat(rootEl, askBtn) {
             <textarea id="chat-input" rows="2" maxlength="1000" placeholder="Ask a question about this data…" aria-label="Message"></textarea>
             <button type="button" id="chat-send" class="btn btn-primary">Send</button>
           </div>
-          <span class="chat-counter" id="chat-counter">0 / 1000</span>
+          <div class="chat-foot">
+            <span class="chat-disclaimer">The assistant can make mistakes. Check numbers against the pages.</span>
+            <span class="chat-counter" id="chat-counter">0 / 1000</span>
+          </div>
         </div>
       </div>
     </div>

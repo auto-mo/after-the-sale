@@ -1,6 +1,6 @@
-import { loadPortfolio } from '../data.js?v=202609241634';
-import { intFmt, decFmt, humanizeType } from '../format.js?v=202609241634';
-import { renderCategoryLineChart, renderGroupedBarChart, cssVar } from '../charts.js?v=202609241634';
+import { loadPortfolio } from '../data.js?v=202609241638';
+import { intFmt, decFmt, humanizeType } from '../format.js?v=202609241638';
+import { renderCategoryLineChart, renderGroupedBarChart, cssVar } from '../charts.js?v=202609241638';
 
 const BAND_ORDER = ['0 to 6 months', '7 to 12 months', 'Year 2', 'Years 3 to 4', 'Year 5+'];
 const FAIL_BAND_ORDER = ['Under a month', '1 to 3 months', '4 to 11 months', 'About a year', '2 years or more'];

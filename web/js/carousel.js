@@ -1,7 +1,7 @@
 // Intro carousel: a centered modal shown before the pointing tour, on first
 // visit only (same localStorage flag as the tour; `?notour` skips both).
 
-import { isTourDone, markTourDone } from './state.js?v=202609241634';
+import { isTourDone, markTourDone } from './state.js?v=202609241638';
 
 const CARDS = [
   {

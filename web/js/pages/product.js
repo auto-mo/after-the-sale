@@ -1,12 +1,12 @@
-import { loadProductDetail, loadPortfolio } from '../data.js?v=202609241634';
+import { loadProductDetail, loadPortfolio } from '../data.js?v=202609241638';
 import {
   renderVolumeChart, renderRatingStrip, renderRatingMainChart, renderVolumeStrip, monthsInRange,
   renderCategoryLineChart, renderGroupedBarChart, cssVar,
-} from '../charts.js?v=202609241634';
+} from '../charts.js?v=202609241638';
 import {
   intFmt, decFmt, monthShort, monthLong, dateShort, monthIndex, humanizeLaunchSource, humanizeType, EMPTY,
-} from '../format.js?v=202609241634';
-import { view, setView, onViewChanged } from '../state.js?v=202609241634';
+} from '../format.js?v=202609241638';
+import { view, setView, onViewChanged } from '../state.js?v=202609241638';
 
 const BAND_ORDER = ['0 to 6 months', '7 to 12 months', 'Year 2', 'Years 3 to 4', 'Year 5+'];
 const ARRIVAL_KEYS = ['missing_parts', 'arrived_damaged_used', 'not_as_described', 'dead_on_arrival'];

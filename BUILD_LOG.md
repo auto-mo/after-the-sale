@@ -178,3 +178,26 @@ the uploaded tables; GitHub redirect and tree contents.
 portfolio.json 200, Work page and new screenshots 200, one live chat question answered with the right tools and numbers.
 **Issues:** the owner first ran the switch command before the script was uploaded; it did nothing (file missing) and
 nothing changed on the server.
+
+## [2026-09-24] Review pass — personas on the live site, fixes
+**Built:** two Sonnet persona testers on the live site (hiring manager; skeptical Amazon analyst) plus my own browser
+pass. Fixes: header stacks below 1100 px (the picker overlapped the title from about 700 to 1100 px); coffee-maker
+finding wording; capitalised type cells; S351 -> S3501 alias (Euro-Pro listing B002IIC2PS, title names S3501, details
+field S351CO; products now 1,137, S3501 6,839 new-unit reviews); calendar trend restricted to the six types both sets
+sold every year 2015 to 2022 (now SharkNinja 12% to 25%, peers 12% to 26%); Findings copy separates the same-product
+age comparison from the calendar trend; notable year-over-year rise = most recent complete year (the S3501 merge had
+made 2010 to 2011 the largest); assistant: deterministic plain_summary per product, rule against engineering or causal
+recommendations, arrival comparison only with 30+ low-star refurbished reviews, and a deterministic filter that drops
+sentences speculating about manufacturing, production, suppliers, supply chain or design changes. Event appendix now
+2,806 events, 806 testable, 0 survive.
+**Tested:** persona claims verified before acting (one was a screenshot cut-off, one a labelling issue); pytest 72
+passed; real Haiku suite 21 of 21 ($0.19); three reruns of the S3501 recommendation question; browser at 1024 and
+800 px; no console errors; deployed page, code and tables; GitHub commit 30f0d0a2d1.
+**Result:** partial (assistant restart and website move need the owner's sudo)
+**Issues:** GitHub API returned 503 twice before succeeding.
+
+## [2026-09-24] Chat disclaimer
+**Built:** line under the chat input: "The assistant can make mistakes. Check numbers against the pages."
+**Tested:** deployed (v=202609241638); opened the chat panel on the live site and saw the line under the input.
+**Result:** pass
+**Issues:** none

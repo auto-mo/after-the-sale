@@ -9,7 +9,7 @@ const cache = {
 };
 
 // Version appended to data URLs so a redeploy is not hidden by the CDN cache (set by scripts/stamp_version.py).
-export const DATA_VERSION = '202609241634';
+export const DATA_VERSION = '202609241638';
 
 async function fetchJson(path) {
   const res = await fetch(`${path}?v=${DATA_VERSION}`, { cache: 'no-store' });

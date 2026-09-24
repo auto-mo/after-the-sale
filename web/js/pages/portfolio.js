@@ -1,7 +1,7 @@
-import { loadPortfolio, loadProducts } from '../data.js?v=202609241634';
-import { intFmt, decFmt, humanizeType } from '../format.js?v=202609241634';
-import { setView } from '../state.js?v=202609241634';
-import { navigate } from '../router.js?v=202609241634';
+import { loadPortfolio, loadProducts } from '../data.js?v=202609241638';
+import { intFmt, decFmt, humanizeType } from '../format.js?v=202609241638';
+import { setView } from '../state.js?v=202609241638';
+import { navigate } from '../router.js?v=202609241638';
 
 function themeLabelMap(portfolio) {
   return new Map(portfolio.themes.map((t) => [t.key, t.label]));

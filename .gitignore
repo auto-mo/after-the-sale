@@ -10,3 +10,4 @@ app/.env
 ledger*.json
 explore/data_snapshot.html
 eval/*_candidates.csv
+_internal/

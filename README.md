@@ -8,6 +8,30 @@ What Shark and Ninja owners report after they buy, compared with Bissell, Dyson,
 This is an independent analysis project. It is not affiliated with, endorsed by or built for SharkNinja, Amazon or
 any of the peer brands. Product names and trademarks belong to their owners.
 
+## What it looks like
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/overview-dark.png">
+  <img src="docs/screenshots/overview-light.png" alt="The After the Sale overview page: five headline findings and a table of product types comparing SharkNinja with peer brands">
+</picture>
+
+The overview page: five findings, each linked to its evidence, and a comparison by product type.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/product-dark.png">
+  <img src="docs/screenshots/product-light.png" alt="The product page for the Shark S3501 steam mop: monthly rating chart, review volume, complaint themes and owner quotes">
+</picture>
+
+A single product: its rating over time, what owners complain about against the SharkNinja and peer averages, and
+their own words.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/findings-dark.png">
+  <img src="docs/screenshots/findings-light.png" alt="The findings page: average rating by product age for SharkNinja and peer brands, with a caveat about who keeps reviewing">
+</picture>
+
+The findings page states what the data shows and where it stops.
+
 ## What it answers
 
 Pick a product and see what its owners complain about, when they say it stopped working, how its rating changes over
@@ -54,10 +78,10 @@ kept in the code and described on the Method page, and the tool makes no demand 
 | Appendix | `pipeline/events.py` | The earlier event tests, with placebo calibration and false-discovery control |
 | Export | `pipeline/export_web.py` | Static JSON for the front end |
 | Front end | `web/` | Plain HTML, CSS and JavaScript; no framework, no build step |
-| Assistant | `app/` | Flask service; Claude Haiku 4.5 with read-only tools, rate limits and a daily spend cap |
+| Assistant | `app/` | Flask service; Claude Haiku 5.5 with read-only tools, rate limits and a daily spend cap |
 
-`PLAN.md` and `BUILD_LOG.md` record every decision, check and correction. `docs/REVIEW_FABLE.md` is the independent
-review that led to the reframe.
+`PLAN.md` and `BUILD_LOG.md` record every decision, check and correction, including the independent review that led to
+the reframe.
 
 ## Run it
 
